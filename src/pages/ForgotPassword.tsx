@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import axios from 'axios'
+import { PasswordInput } from '../components/PasswordInput'
 
 const BASE = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/v1` : '/v1'
 
@@ -102,23 +103,19 @@ export function ForgotPasswordPage() {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Nouveau mot de passe</label>
-              <input
-                type="password"
+              <PasswordInput
                 value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
+                onChange={setNewPassword}
                 placeholder="Minimum 8 caractères"
                 className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                required
               />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Confirmer le mot de passe</label>
-              <input
-                type="password"
+              <PasswordInput
                 value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
+                onChange={setConfirmPassword}
                 className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                required
               />
             </div>
             {error && <p className="text-red-600 text-sm">{error}</p>}

@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { api } from '../lib/api'
 import { ROLE_LABELS } from '../lib/format'
+import { PasswordInput } from '../components/PasswordInput'
 
 interface UserRow {
   id: string
@@ -76,18 +77,19 @@ function CreateUserModal({ onClose }: { onClose: () => void }) {
           {isCollector ? (
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">PIN (6 chiffres) *</label>
-              <input
-                type="password" inputMode="numeric" maxLength={6}
-                value={form.pin} onChange={(e) => set('pin', e.target.value.replace(/\D/g, '').slice(0, 6))}
+              <PasswordInput
+                value={form.pin}
+                onChange={(v) => set('pin', v.replace(/\D/g, '').slice(0, 6))}
                 placeholder="123456"
-                className="w-full border rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                inputMode="numeric"
+                maxLength={6}
               />
               <p className="text-xs text-gray-400 mt-0.5">Le collecteur utilisera ce PIN sur l'application mobile.</p>
             </div>
           ) : (
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Mot de passe (min. 8 caractères) *</label>
-              <input type="password" value={form.password} onChange={(e) => set('password', e.target.value)} className="w-full border rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              <PasswordInput value={form.password} onChange={(v) => set('password', v)} />
             </div>
           )}
         </div>
@@ -125,13 +127,12 @@ function ResetPinModal({ user, onClose }: { user: UserRow; onClose: () => void }
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl leading-none">×</button>
         </div>
         <p className="text-sm text-gray-600 mb-3">{user.firstName} {user.lastName}</p>
-        <input
-          type="password"
+        <PasswordInput
+          value={pin}
+          onChange={(v) => setPin(v.replace(/\D/g, '').slice(0, 6))}
+          placeholder="6 chiffres"
           inputMode="numeric"
           maxLength={6}
-          value={pin}
-          onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 6))}
-          placeholder="6 chiffres"
           className="w-full border rounded px-3 py-2 text-center text-xl font-mono tracking-widest focus:outline-none focus:ring-2 focus:ring-blue-500 mb-3"
         />
         {error && <p className="text-red-600 text-xs mb-2">{error}</p>}

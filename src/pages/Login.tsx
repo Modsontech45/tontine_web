@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { login } from '../lib/auth'
+import { PasswordInput } from '../components/PasswordInput'
 
 export function LoginPage() {
   const navigate = useNavigate()
@@ -43,12 +44,10 @@ export function LoginPage() {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Mot de passe</label>
-            <input
-              type="password"
+            <PasswordInput
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={setPassword}
               className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              required
             />
           </div>
           {error && <p className="text-red-600 text-sm">{error}</p>}
