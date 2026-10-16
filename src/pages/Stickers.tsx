@@ -11,15 +11,22 @@ export function StickersPage() {
   const [assignFrom, setAssignFrom] = useState('')
   const [assignTo, setAssignTo] = useState('')
   const [batchMsg, setBatchMsg] = useState('')
+  const [statusFilter, setStatusFilter] = useState('')
+  const [page, setPage] = useState(1)
 
   const { data: collectors } = useQuery({
     queryKey: ['users', 'COLLECTOR'],
     queryFn: () => api.get('/users', { params: { role: 'COLLECTOR', page_size: 100 } }).then((r) => r.data),
   })
 
+  const collectorMap: Record<string, string> = {}
+  for (const u of collectors?.data ?? []) {
+    collectorMap[u.id] = `${u.firstName} ${u.lastName}`
+  }
+
   const { data: stickers, isLoading } = useQuery({
-    queryKey: ['stickers'],
-    queryFn: () => api.get('/stickers', { params: { page_size: 50 } }).then((r) => r.data),
+    queryKey: ['stickers', statusFilter, page],
+    queryFn: () => api.get('/stickers', { params: { status: statusFilter || undefined, page, page_size: 50 } }).then((r) => r.data),
   })
 
   const createBatch = useMutation({
@@ -36,6 +43,7 @@ export function StickersPage() {
   const assign = useMutation({
     mutationFn: () => api.post('/stickers/assign', { collector_id: assignCollector, from_number: parseInt(assignFrom), to_number: parseInt(assignTo) }),
     onSuccess: () => { setBatchMsg('Carnets assignés avec succès'); qc.invalidateQueries({ queryKey: ['stickers'] }) },
+    onError: () => setBatchMsg('Erreur lors de l\'assignation'),
   })
 
   return (
@@ -88,31 +96,54 @@ export function StickersPage() {
 
       {batchMsg && <p className="text-sm text-green-700 bg-green-50 px-3 py-2 rounded mb-4">{batchMsg}</p>}
 
+      <div className="flex items-center gap-3 mb-3">
+        <select
+          value={statusFilter}
+          onChange={(e) => { setStatusFilter(e.target.value); setPage(1) }}
+          className="border rounded px-3 py-1.5 text-sm"
+        >
+          <option value="">Tous les statuts</option>
+          <option value="AVAILABLE">Disponible</option>
+          <option value="ASSIGNED">Assigné</option>
+          <option value="USED">Utilisé</option>
+        </select>
+        <span className="text-sm text-gray-500">{stickers?.total ?? 0} carnets</span>
+      </div>
+
       {isLoading ? <p className="text-gray-500">Chargement...</p> : (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b">
-              <tr>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">N° Carnet</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Statut</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Collecteur assigné</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {stickers?.data?.map((s: { carnetNumber: string; status: string; assignedCollectorId: string }) => (
-                <tr key={s.carnetNumber} className="hover:bg-gray-50">
-                  <td className="px-4 py-2 font-mono text-xs">{s.carnetNumber}</td>
-                  <td className="px-4 py-2">
-                    <span className={`px-2 py-0.5 rounded text-xs ${s.status === 'USED' ? 'bg-gray-100 text-gray-600' : s.status === 'ASSIGNED' ? 'bg-yellow-50 text-yellow-700' : 'bg-green-50 text-green-700'}`}>
-                      {STATUS_LABELS[s.status] ?? s.status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-2 text-xs text-gray-500">{s.assignedCollectorId ? s.assignedCollectorId.slice(0, 8) + '...' : '—'}</td>
+        <>
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 border-b">
+                <tr>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">N° Carnet</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">Statut</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">Collecteur assigné</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {stickers?.data?.map((s: { carnetNumber: string; status: string; assignedCollectorId: string }) => (
+                  <tr key={s.carnetNumber} className="hover:bg-gray-50">
+                    <td className="px-4 py-2 font-mono text-xs">{s.carnetNumber}</td>
+                    <td className="px-4 py-2">
+                      <span className={`px-2 py-0.5 rounded text-xs ${s.status === 'USED' ? 'bg-gray-100 text-gray-600' : s.status === 'ASSIGNED' ? 'bg-yellow-50 text-yellow-700' : 'bg-green-50 text-green-700'}`}>
+                        {STATUS_LABELS[s.status] ?? s.status}
+                      </span>
+                    </td>
+                    <td className="px-4 py-2 text-xs text-gray-700">
+                      {s.assignedCollectorId ? (collectorMap[s.assignedCollectorId] ?? s.assignedCollectorId.slice(0, 8) + '...') : '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="flex items-center justify-end gap-2 mt-3 text-sm">
+            <button disabled={page === 1} onClick={() => setPage(page - 1)} className="px-3 py-1 border rounded disabled:opacity-40">← Précédente</button>
+            <span className="text-gray-500">Page {page}</span>
+            <button disabled={(stickers?.data?.length ?? 0) < 50} onClick={() => setPage(page + 1)} className="px-3 py-1 border rounded disabled:opacity-40">Suivante →</button>
+          </div>
+        </>
       )}
     </div>
   )

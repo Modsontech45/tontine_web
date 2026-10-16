@@ -9,6 +9,8 @@ import { SettingsPage } from './pages/Settings'
 import { AuditLogPage } from './pages/AuditLog'
 import { ClientsPage } from './pages/Clients'
 import { StickersPage } from './pages/Stickers'
+import { ClientDetailPage } from './pages/ClientDetail'
+import { CaissePage } from './pages/Caisse'
 import { isAuthenticated } from './lib/auth'
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
@@ -35,7 +37,9 @@ export default function App() {
         <Route path="settings" element={<SettingsPage />} />
         <Route path="audit-log" element={<AuditLogPage />} />
         <Route path="clients" element={<ClientsPage />} />
+        <Route path="clients/:id" element={<ClientDetailPage />} />
         <Route path="stickers" element={<StickersPage />} />
+        <Route path="caisse" element={<CaissePage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

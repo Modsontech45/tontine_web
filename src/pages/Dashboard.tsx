@@ -14,6 +14,7 @@ interface DashboardData {
     monthAmount: number; monthCount: number
     openCycles: number; closedCycles: number; paidCycles: number; cancelledCycles: number
     pendingAlerts: number; pendingVoids: number
+    todayVersed: number; todayGap: number
   }
   dailyCollections: Array<{ date: string; amount: number; count: number }>
   monthlyRevenue: Array<{ month: string; amount: number; count: number }>
@@ -72,9 +73,11 @@ export function DashboardPage() {
       <h2 className="text-2xl font-semibold text-gray-900">Tableau de bord</h2>
 
       {/* ── KPI Row ──────────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
         <KpiCard label="Clients actifs"     value={kpis.activeClients}          color="indigo" />
         <KpiCard label="Collecté aujourd'hui" value={fmtShort(kpis.todayAmount)} sub={`${kpis.todayCount} opérations`} color="emerald" />
+        <KpiCard label="Versé aujourd'hui"  value={fmtShort(kpis.todayVersed ?? 0)} color="teal" />
+        <KpiCard label="Écart du jour"      value={fmtShort(Math.abs(kpis.todayGap ?? 0))} sub={(kpis.todayGap ?? 0) < 0 ? 'manquant' : (kpis.todayGap ?? 0) > 0 ? 'non versé' : 'équilibré'} color={(kpis.todayGap ?? 0) !== 0 ? 'red' : 'emerald'} />
         <KpiCard label="Ce mois"            value={fmtShort(kpis.monthAmount)}   sub={`${kpis.monthCount} opérations`} color="violet" />
         <KpiCard label="Cycles ouverts"     value={kpis.openCycles}             color="sky" />
         <KpiCard label="Alertes ouvertes"   value={kpis.pendingAlerts}          color={kpis.pendingAlerts > 5 ? 'red' : 'amber'} />
@@ -242,11 +245,12 @@ function KpiCard({ label, value, sub, color }: {
     indigo: 'border-indigo-100 bg-indigo-50', emerald: 'border-emerald-100 bg-emerald-50',
     violet: 'border-violet-100 bg-violet-50', sky: 'border-sky-100 bg-sky-50',
     amber: 'border-amber-100 bg-amber-50', orange: 'border-orange-100 bg-orange-50',
-    red: 'border-red-100 bg-red-50',
+    red: 'border-red-100 bg-red-50', teal: 'border-teal-100 bg-teal-50',
   }
   const text: Record<string, string> = {
     indigo: 'text-indigo-700', emerald: 'text-emerald-700', violet: 'text-violet-700',
     sky: 'text-sky-700', amber: 'text-amber-700', orange: 'text-orange-700', red: 'text-red-700',
+    teal: 'text-teal-700',
   }
   return (
     <div className={`rounded-xl border p-4 ${ring[color] ?? 'border-gray-100 bg-gray-50'}`}>

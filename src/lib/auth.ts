@@ -11,6 +11,7 @@ export async function login(credentials: { phone?: string; email?: string; passw
   const { data } = await api.post('/auth/web/login', credentials)
   localStorage.setItem('access_token', data.access_token)
   localStorage.setItem('refresh_token', data.refresh_token)
+  if (data.user) localStorage.setItem('auth_user', JSON.stringify(data.user))
   return data.user
 }
 
@@ -21,6 +22,7 @@ export function logout(): void {
   }
   localStorage.removeItem('access_token')
   localStorage.removeItem('refresh_token')
+  localStorage.removeItem('auth_user')
 }
 
 export function getStoredUser(): AuthUser | null {
@@ -28,7 +30,14 @@ export function getStoredUser(): AuthUser | null {
   if (!token) return null
   try {
     const payload = JSON.parse(atob(token.split('.')[1]))
-    return { id: payload.userId, role: payload.role, first_name: '', last_name: '' }
+    const stored = localStorage.getItem('auth_user')
+    const profile: Partial<AuthUser> = stored ? JSON.parse(stored) : {}
+    return {
+      id: payload.userId,
+      role: payload.role,
+      first_name: profile.first_name ?? '',
+      last_name: profile.last_name ?? '',
+    }
   } catch {
     return null
   }

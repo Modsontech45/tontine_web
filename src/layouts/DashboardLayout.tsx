@@ -1,9 +1,11 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
-import { logout } from '../lib/auth'
+import { logout, getStoredUser } from '../lib/auth'
+import { ROLE_LABELS } from '../lib/format'
 
 const navItems = [
   { to: '/', label: 'Tableau de bord', exact: true },
   { to: '/clients', label: 'Clients' },
+  { to: '/caisse', label: 'Caisse' },
   { to: '/stickers', label: 'Carnets / Stickers' },
   { to: '/users', label: 'Utilisateurs' },
   { to: '/devices', label: 'Appareils' },
@@ -14,6 +16,7 @@ const navItems = [
 
 export function DashboardLayout() {
   const navigate = useNavigate()
+  const user = getStoredUser()
 
   const handleLogout = () => {
     logout()
@@ -42,7 +45,15 @@ export function DashboardLayout() {
             </NavLink>
           ))}
         </nav>
-        <div className="p-4 border-t">
+        <div className="p-4 border-t space-y-3">
+          {user && (
+            <div className="px-3 py-2 bg-gray-50 rounded-md">
+              <p className="text-sm font-medium text-gray-900 truncate">
+                {user.first_name ? `${user.first_name} ${user.last_name}` : 'Administrateur'}
+              </p>
+              <p className="text-xs text-gray-500">{ROLE_LABELS[user.role] ?? user.role}</p>
+            </div>
+          )}
           <button
             onClick={handleLogout}
             className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-md"

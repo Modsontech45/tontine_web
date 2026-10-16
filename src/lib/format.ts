@@ -32,4 +32,7 @@ export const STATUS_LABELS: Record<string, string> = {
   PENDING: 'En attente',
   APPROVED: 'Approuvé',
   REVOKED: 'Révoqué',
+  AVAILABLE: 'Disponible',
+  ASSIGNED: 'Assigné',
+  USED: 'Utilisé',
 }
