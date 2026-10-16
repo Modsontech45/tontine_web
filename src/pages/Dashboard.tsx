@@ -1,8 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
 import {
-  AreaChart, Area, BarChart, Bar, LineChart, Line,
+  AreaChart, Area, BarChart, Bar,
   PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid,
-  Tooltip, Legend, ResponsiveContainer,
+  Tooltip, ResponsiveContainer,
 } from 'recharts'
 import { api } from '../lib/api'
 import { formatAmount } from '../lib/format'
@@ -187,7 +187,7 @@ export function DashboardPage() {
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
               <XAxis dataKey="stake" tickFormatter={v => `${v} F`} tick={{ fontSize: 11 }} />
               <YAxis tick={{ fontSize: 11 }} />
-              <Tooltip formatter={(v: number, n: string) => [v, 'Clients']} labelFormatter={l => `Mise: ${formatAmount(Number(l))}`} />
+              <Tooltip formatter={(v: number) => [v, 'Clients']} labelFormatter={l => `Mise: ${formatAmount(Number(l))}`} />
               <Bar dataKey="clients" name="Clients" fill="#06b6d4" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>

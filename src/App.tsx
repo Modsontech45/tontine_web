@@ -11,6 +11,7 @@ import { ClientsPage } from './pages/Clients'
 import { StickersPage } from './pages/Stickers'
 import { ClientDetailPage } from './pages/ClientDetail'
 import { CaissePage } from './pages/Caisse'
+import { ForgotPasswordPage } from './pages/ForgotPassword'
 import { isAuthenticated } from './lib/auth'
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
@@ -22,6 +23,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route
         path="/"
         element={

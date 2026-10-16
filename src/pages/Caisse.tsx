@@ -18,69 +18,141 @@ function ConfirmModal({
 }) {
   const [receivedAmount, setReceivedAmount] = useState(expectedAmount)
   const [notes, setNotes] = useState('')
+  const [step, setStep] = useState<'form' | 'otp'>('form')
+  const [otpCode, setOtpCode] = useState('')
   const [error, setError] = useState('')
+  const [sending, setSending] = useState(false)
+
+  const diff = receivedAmount - expectedAmount
+
+  const requestOtp = async () => {
+    setSending(true)
+    setError('')
+    try {
+      await api.post('/otp/request', { purpose: 'CONFIRM_HANDOVER' })
+      setStep('otp')
+    } catch (err: any) {
+      const code = err?.response?.data?.error?.code
+      if (code === 'NO_EMAIL') {
+        // No email on account — confirm directly without OTP
+        confirmDirect()
+      } else {
+        setError(err?.response?.data?.error?.message ?? 'Erreur lors de l\'envoi du code')
+      }
+    } finally {
+      setSending(false)
+    }
+  }
 
   const confirm = useMutation({
-    mutationFn: () =>
+    mutationFn: (otp?: string) =>
       api.post('/handovers/confirm', {
         collector_id: collector.collector_id,
         business_date: businessDate,
         received_amount: receivedAmount,
         notes: notes || undefined,
+        otp_code: otp,
       }),
     onSuccess: () => { onConfirmed(); onClose() },
     onError: (err: any) => setError(err?.response?.data?.error?.message ?? 'Erreur'),
   })
 
-  const diff = receivedAmount - expectedAmount
+  const confirmDirect = () => confirm.mutate(undefined)
+  const confirmWithOtp = () => {
+    if (otpCode.length !== 6) { setError('Entrez le code à 6 chiffres'); return }
+    setError('')
+    confirm.mutate(otpCode)
+  }
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
       <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md">
-        <h3 className="text-lg font-semibold mb-4">Confirmer le versement</h3>
+        <h3 className="text-lg font-semibold mb-1">Confirmer le versement</h3>
         <p className="text-sm text-gray-600 mb-4">
           <span className="font-medium">{collector.first_name} {collector.last_name}</span> — {businessDate}
         </p>
-        <div className="space-y-4">
-          <div>
-            <p className="text-xs text-gray-500 mb-1">Montant attendu (système)</p>
-            <p className="text-xl font-bold text-gray-900">{formatAmount(expectedAmount)}</p>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Montant reçu (F CFA) *</label>
-            <input
-              type="number"
-              value={receivedAmount}
-              onChange={(e) => setReceivedAmount(parseInt(e.target.value) || 0)}
-              className="w-full border rounded px-3 py-2 text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-          {diff !== 0 && (
-            <div className={`px-3 py-2 rounded text-sm ${diff < 0 ? 'bg-red-50 text-red-700' : 'bg-orange-50 text-orange-700'}`}>
-              Écart: {diff > 0 ? '+' : ''}{formatAmount(diff)} {diff < 0 ? '— montant manquant' : '— surplus'}
+
+        {step === 'form' && (
+          <div className="space-y-4">
+            <div>
+              <p className="text-xs text-gray-500 mb-1">Montant attendu (système)</p>
+              <p className="text-xl font-bold text-gray-900">{formatAmount(expectedAmount)}</p>
             </div>
-          )}
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Notes (optionnel)</label>
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              rows={2}
-              className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Explication d'un écart, remarque..."
-            />
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Montant reçu (F CFA) *</label>
+              <input
+                type="number"
+                value={receivedAmount}
+                onChange={(e) => setReceivedAmount(parseInt(e.target.value) || 0)}
+                className="w-full border rounded px-3 py-2 text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            {diff !== 0 && (
+              <div className={`px-3 py-2 rounded text-sm ${diff < 0 ? 'bg-red-50 text-red-700' : 'bg-orange-50 text-orange-700'}`}>
+                Écart: {diff > 0 ? '+' : ''}{formatAmount(diff)} {diff < 0 ? '— montant manquant' : '— surplus'}
+              </div>
+            )}
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Notes (optionnel)</label>
+              <textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                rows={2}
+                className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Explication d'un écart, remarque..."
+              />
+            </div>
           </div>
-        </div>
+        )}
+
+        {step === 'otp' && (
+          <div className="space-y-4">
+            <div className="bg-blue-50 border border-blue-200 text-blue-800 text-sm px-4 py-3 rounded-lg">
+              Code envoyé à votre email — valide 10 minutes
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-2">Code de vérification (6 chiffres)</label>
+              <input
+                type="text"
+                inputMode="numeric"
+                maxLength={6}
+                value={otpCode}
+                onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                autoFocus
+                className="w-full border-2 rounded-lg px-4 py-3 text-3xl font-bold text-center tracking-widest focus:outline-none focus:border-blue-500"
+                placeholder="——————"
+              />
+            </div>
+            <button
+              onClick={() => { setStep('form'); setOtpCode(''); setError('') }}
+              className="text-sm text-gray-500 hover:text-gray-700"
+            >
+              ← Retour
+            </button>
+          </div>
+        )}
+
         {error && <p className="text-red-600 text-sm mt-3">{error}</p>}
+
         <div className="flex justify-end gap-2 mt-5">
           <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded">Annuler</button>
-          <button
-            onClick={() => confirm.mutate()}
-            disabled={confirm.isPending || receivedAmount < 0}
-            className="px-4 py-2 text-sm bg-green-700 text-white rounded hover:bg-green-800 disabled:opacity-50"
-          >
-            {confirm.isPending ? 'Enregistrement...' : 'Confirmer le versement'}
-          </button>
+          {step === 'form' ? (
+            <button
+              onClick={requestOtp}
+              disabled={sending || receivedAmount < 0}
+              className="px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+            >
+              {sending ? 'Envoi...' : 'Envoyer le code de vérification'}
+            </button>
+          ) : (
+            <button
+              onClick={confirmWithOtp}
+              disabled={confirm.isPending || otpCode.length !== 6}
+              className="px-4 py-2 text-sm bg-green-700 text-white rounded hover:bg-green-800 disabled:opacity-50"
+            >
+              {confirm.isPending ? 'Enregistrement...' : 'Confirmer le versement'}
+            </button>
+          )}
         </div>
       </div>
     </div>
