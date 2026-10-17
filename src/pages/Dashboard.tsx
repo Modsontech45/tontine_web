@@ -1,11 +1,13 @@
 import { useQuery } from '@tanstack/react-query'
 import {
   AreaChart, Area, BarChart, Bar,
-  PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer,
+  PieChart, Pie, Cell,
+  XAxis, YAxis, CartesianGrid,
+  Tooltip, ResponsiveContainer, Legend,
 } from 'recharts'
 import { api } from '../lib/api'
 import { formatAmount } from '../lib/format'
+import { getStoredUser } from '../lib/auth'
 
 interface DashboardData {
   kpis: {
@@ -25,25 +27,26 @@ interface DashboardData {
   stakeDistribution: Array<{ stake: number; clients: number }>
 }
 
-const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#f97316', '#ec4899']
 const CYCLE_COLORS: Record<string, string> = {
-  OPEN: '#10b981', CLOSED: '#f59e0b', PAID: '#6366f1', CANCELLED: '#ef4444',
+  OPEN: '#6366f1', CLOSED: '#f59e0b', PAID: '#10b981', CANCELLED: '#ef4444',
 }
+const ZONE_COLORS = ['#6366f1', '#D4A017', '#10b981', '#06b6d4', '#f97316', '#8b5cf6', '#ec4899', '#ef4444']
 
 function fmtShort(v: number) {
-  if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M F`
-  if (v >= 1_000) return `${(v / 1_000).toFixed(0)}k F`
-  return `${v} F`
+  if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`
+  if (v >= 1_000) return `${(v / 1_000).toFixed(0)}k`
+  return `${v}`
 }
 
-function AmountTooltip({ active, payload, label }: any) {
+function CustomTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null
   return (
-    <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-3 text-sm">
-      <p className="font-medium text-gray-700 mb-1">{label}</p>
+    <div className="bg-white border border-gray-100 rounded-xl shadow-xl p-3 text-sm">
+      <p className="font-semibold text-gray-700 mb-2">{label}</p>
       {payload.map((p: any) => (
-        <p key={p.dataKey} style={{ color: p.color }}>
-          {p.name}: {p.dataKey === 'count' ? p.value : formatAmount(p.value)}
+        <p key={p.dataKey} className="flex items-center gap-2" style={{ color: p.color }}>
+          <span className="w-2 h-2 rounded-full inline-block" style={{ background: p.color }} />
+          {p.name}: <strong>{p.dataKey === 'count' ? p.value : formatAmount(p.value)}</strong>
         </p>
       ))}
     </div>
@@ -51,6 +54,9 @@ function AmountTooltip({ active, payload, label }: any) {
 }
 
 export function DashboardPage() {
+  const user = getStoredUser()
+  const firstName = user?.first_name ?? 'Admin'
+
   const { data, isLoading, error } = useQuery<DashboardData>({
     queryKey: ['dashboard-admin'],
     queryFn: () => api.get('/dashboard/admin').then(r => r.data),
@@ -59,213 +65,279 @@ export function DashboardPage() {
 
   if (isLoading) return (
     <div className="flex items-center justify-center h-64">
-      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600" />
+      <div className="text-center">
+        <div className="w-10 h-10 rounded-full border-4 border-indigo-500 border-t-transparent animate-spin mx-auto mb-3" />
+        <p className="text-sm text-gray-400">Chargement du tableau de bord…</p>
+      </div>
     </div>
   )
   if (error || !data) return (
-    <div className="text-red-500 p-6">Impossible de charger le tableau de bord.</div>
+    <div className="bg-red-50 border border-red-100 rounded-xl p-6 text-red-600">
+      Impossible de charger le tableau de bord.
+    </div>
   )
 
   const { kpis } = data
 
-  return (
-    <div className="space-y-6">
-      <h2 className="text-2xl font-semibold text-gray-900">Tableau de bord</h2>
+  // Merge dailyCollections to also show versed (we only have total versed for today, so use collected for chart)
+  const chartData = data.dailyCollections.slice(-14).map(d => ({
+    date: d.date.slice(5),
+    Collecté: d.amount,
+    Opérations: d.count,
+  }))
 
-      {/* ── KPI Row ──────────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
-        <KpiCard label="Clients actifs"     value={kpis.activeClients}          color="indigo" />
-        <KpiCard label="Collecté aujourd'hui" value={fmtShort(kpis.todayAmount)} sub={`${kpis.todayCount} opérations`} color="emerald" />
-        <KpiCard label="Versé aujourd'hui"  value={fmtShort(kpis.todayVersed ?? 0)} color="teal" />
-        <KpiCard label="Écart du jour"      value={fmtShort(Math.abs(kpis.todayGap ?? 0))} sub={(kpis.todayGap ?? 0) < 0 ? 'manquant' : (kpis.todayGap ?? 0) > 0 ? 'non versé' : 'équilibré'} color={(kpis.todayGap ?? 0) !== 0 ? 'red' : 'emerald'} />
-        <KpiCard label="Ce mois"            value={fmtShort(kpis.monthAmount)}   sub={`${kpis.monthCount} opérations`} color="violet" />
-        <KpiCard label="Cycles ouverts"     value={kpis.openCycles}             color="sky" />
-        <KpiCard label="Alertes ouvertes"   value={kpis.pendingAlerts}          color={kpis.pendingAlerts > 5 ? 'red' : 'amber'} />
-        <KpiCard label="Annulations"        value={kpis.pendingVoids}           sub="en attente" color="orange" />
+  return (
+    <div className="space-y-7">
+      {/* ── Header ───────────────────────────────────────────── */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">
+            Bonjour, {firstName} <span className="wave">👋</span>
+          </h1>
+          <p className="text-gray-400 text-sm mt-1">
+            {new Date().toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          {kpis.pendingAlerts > 0 && (
+            <div className="relative">
+              <div className="w-9 h-9 rounded-full bg-white shadow-sm border border-gray-100 flex items-center justify-center">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+              </div>
+              <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 text-white text-xs flex items-center justify-center font-bold">{kpis.pendingAlerts}</span>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* ── Daily + Monthly charts ────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <ChartCard title="Collectes journalières — 30 derniers jours">
+      {/* ── 4 KPI Cards ──────────────────────────────────────── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
+        <KpiCard
+          label="Collecté aujourd'hui"
+          value={`${fmtShort(kpis.todayAmount)} F`}
+          sub={`${kpis.todayCount} opérations`}
+          pct={null}
+          borderColor="#6366f1"
+          dotColor="bg-indigo-500"
+        />
+        <KpiCard
+          label="Collecté ce mois"
+          value={`${fmtShort(kpis.monthAmount)} F`}
+          sub={`${kpis.monthCount} opérations`}
+          pct={null}
+          borderColor="#f59e0b"
+          dotColor="bg-amber-500"
+        />
+        <KpiCard
+          label="Clients actifs"
+          value={`${kpis.activeClients}`}
+          sub={`${kpis.suspendedClients} suspendus`}
+          pct={null}
+          borderColor="#06b6d4"
+          dotColor="bg-cyan-500"
+        />
+        <KpiCard
+          label="Cycles ouverts"
+          value={`${kpis.openCycles}`}
+          sub={kpis.pendingAlerts > 0 ? `${kpis.pendingAlerts} alertes` : 'Aucune alerte'}
+          pct={null}
+          borderColor="#10b981"
+          dotColor="bg-emerald-500"
+        />
+      </div>
+
+      {/* ── Charts row ───────────────────────────────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        {/* Area chart — 14 days */}
+        <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+          <div className="flex items-center justify-between mb-5">
+            <div>
+              <h3 className="font-bold text-gray-900">Collectes — 14 derniers jours</h3>
+              <p className="text-xs text-gray-400 mt-0.5">Montant encaissé par date</p>
+            </div>
+            <div className="flex items-center gap-4 text-xs text-gray-500">
+              <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-indigo-500 inline-block"/>#Collecté</span>
+            </div>
+          </div>
           <ResponsiveContainer width="100%" height={220}>
-            <AreaChart data={data.dailyCollections} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+            <AreaChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
               <defs>
-                <linearGradient id="gDaily" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+                <linearGradient id="gCollected" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#6366f1" stopOpacity={0.25} />
+                  <stop offset="100%" stopColor="#6366f1" stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis dataKey="date" tickFormatter={d => d.slice(5)} tick={{ fontSize: 11 }} interval={4} />
-              <YAxis tickFormatter={v => fmtShort(v)} tick={{ fontSize: 11 }} width={58} />
-              <Tooltip content={<AmountTooltip />} />
-              <Area type="monotone" dataKey="amount" name="Montant" stroke="#6366f1" fill="url(#gDaily)" strokeWidth={2} dot={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+              <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+              <YAxis tickFormatter={v => fmtShort(v)} tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} width={52} />
+              <Tooltip content={<CustomTooltip />} />
+              <Area type="monotone" dataKey="Collecté" stroke="#6366f1" fill="url(#gCollected)" strokeWidth={2.5} dot={false} activeDot={{ r: 4, fill: '#6366f1' }} />
             </AreaChart>
           </ResponsiveContainer>
-        </ChartCard>
+        </div>
 
-        <ChartCard title="Revenus mensuels — 6 derniers mois">
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={data.monthlyRevenue} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-              <YAxis tickFormatter={v => fmtShort(v)} tick={{ fontSize: 11 }} width={58} />
-              <Tooltip content={<AmountTooltip />} />
-              <Bar dataKey="amount" name="Montant" fill="#10b981" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </ChartCard>
+        {/* Cycle donut */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+          <div className="mb-4">
+            <h3 className="font-bold text-gray-900">Statut des cycles</h3>
+            <p className="text-xs text-gray-400 mt-0.5">Répartition globale</p>
+          </div>
+          <div className="flex items-center justify-center">
+            <ResponsiveContainer width="100%" height={170}>
+              <PieChart>
+                <Pie
+                  data={data.cycleBreakdown}
+                  dataKey="count"
+                  nameKey="label"
+                  cx="50%" cy="50%"
+                  innerRadius={50}
+                  outerRadius={75}
+                  paddingAngle={3}
+                  strokeWidth={0}
+                >
+                  {data.cycleBreakdown.map((entry) => (
+                    <Cell key={entry.status} fill={CYCLE_COLORS[entry.status] ?? '#94a3b8'} />
+                  ))}
+                </Pie>
+                <Tooltip formatter={(v: number, name) => [`${v}`, name]} />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="grid grid-cols-2 gap-2 mt-2">
+            {data.cycleBreakdown.map(e => (
+              <div key={e.status} className="flex items-center gap-2 text-xs text-gray-600">
+                <span className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ background: CYCLE_COLORS[e.status] ?? '#94a3b8' }} />
+                <span className="truncate">{e.label}</span>
+                <strong className="ml-auto">{e.count}</strong>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
-      {/* ── Zone + Cycle status + Top collectors ─────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <ChartCard title="Collectes par zone (7 jours)">
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={data.collectionsByZone} layout="vertical" margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" horizontal={false} />
-              <XAxis type="number" tickFormatter={v => fmtShort(v)} tick={{ fontSize: 11 }} />
-              <YAxis type="category" dataKey="zone" width={80} tick={{ fontSize: 11 }} />
-              <Tooltip content={<AmountTooltip />} />
-              <Bar dataKey="amount" name="Montant" radius={[0, 4, 4, 0]}>
+      {/* ── Bottom row ───────────────────────────────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        {/* Top collectors table */}
+        <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+          <div className="flex items-center justify-between mb-5">
+            <h3 className="font-bold text-gray-900">Top Collecteurs — 30 jours</h3>
+            <span className="text-xs text-indigo-600 font-medium cursor-pointer hover:underline">Voir tout</span>
+          </div>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-gray-50">
+                <th className="text-left pb-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Nom</th>
+                <th className="text-left pb-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Montant</th>
+                <th className="text-left pb-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Opérations</th>
+                <th className="text-left pb-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Clients</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {data.topCollectors.map((c, i) => (
+                <tr key={i} className="group hover:bg-gray-50/50 transition-colors">
+                  <td className="py-3 pr-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
+                           style={{ background: ZONE_COLORS[i % ZONE_COLORS.length] }}>
+                        {c.name.split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase()}
+                      </div>
+                      <span className="font-medium text-gray-800">{c.name}</span>
+                    </div>
+                  </td>
+                  <td className="py-3 pr-4">
+                    <span className="font-bold text-gray-900">{formatAmount(c.amount)}</span>
+                  </td>
+                  <td className="py-3 pr-4 text-gray-500">{c.count}</td>
+                  <td className="py-3">
+                    <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700">{c.clients}</span>
+                  </td>
+                </tr>
+              ))}
+              {data.topCollectors.length === 0 && (
+                <tr><td colSpan={4} className="py-8 text-center text-gray-400 text-sm">Aucune donnée ce mois</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Zone bar chart */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+          <div className="mb-4">
+            <h3 className="font-bold text-gray-900">Collectes par zone</h3>
+            <p className="text-xs text-gray-400 mt-0.5">7 derniers jours</p>
+          </div>
+          <ResponsiveContainer width="100%" height={200}>
+            <BarChart data={data.collectionsByZone} layout="vertical" margin={{ top: 0, right: 10, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
+              <XAxis type="number" tickFormatter={v => fmtShort(v)} tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+              <YAxis type="category" dataKey="zone" width={70} tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} />
+              <Tooltip content={<CustomTooltip />} />
+              <Bar dataKey="amount" name="Montant" radius={[0, 6, 6, 0]} maxBarSize={20}>
                 {data.collectionsByZone.map((_, i) => (
-                  <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                  <Cell key={i} fill={ZONE_COLORS[i % ZONE_COLORS.length]} />
                 ))}
               </Bar>
             </BarChart>
           </ResponsiveContainer>
-        </ChartCard>
 
-        <ChartCard title="Statut des cycles">
-          <ResponsiveContainer width="100%" height={220}>
-            <PieChart>
-              <Pie
-                data={data.cycleBreakdown}
-                dataKey="count"
-                nameKey="label"
-                cx="50%" cy="50%"
-                innerRadius={55}
-                outerRadius={85}
-                paddingAngle={3}
-                label={({ label, percent }) => `${label} ${(percent * 100).toFixed(0)}%`}
-                labelLine={false}
-              >
-                {data.cycleBreakdown.map((entry) => (
-                  <Cell key={entry.status} fill={CYCLE_COLORS[entry.status] ?? '#94a3b8'} />
-                ))}
-              </Pie>
-              <Tooltip formatter={(v: number) => [`${v} cycles`, '']} />
-            </PieChart>
-          </ResponsiveContainer>
-          <div className="flex flex-wrap justify-center gap-3 mt-1">
-            {data.cycleBreakdown.map(e => (
-              <span key={e.status} className="flex items-center gap-1 text-xs text-gray-600">
-                <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: CYCLE_COLORS[e.status] }} />
-                {e.label}: <strong>{e.count}</strong>
-              </span>
-            ))}
-          </div>
-        </ChartCard>
-
-        <ChartCard title="Top collecteurs (30 jours)">
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={data.topCollectors.slice(0, 6)} layout="vertical" margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" horizontal={false} />
-              <XAxis type="number" tickFormatter={v => fmtShort(v)} tick={{ fontSize: 11 }} />
-              <YAxis type="category" dataKey="name" width={80} tick={{ fontSize: 10 }} />
-              <Tooltip content={<AmountTooltip />} />
-              <Bar dataKey="amount" name="Montant" fill="#8b5cf6" radius={[0, 4, 4, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </ChartCard>
-      </div>
-
-      {/* ── Stake distribution + Alert types ─────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <ChartCard title="Distribution des mises (cycles ouverts)">
-          <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={data.stakeDistribution} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis dataKey="stake" tickFormatter={v => `${v} F`} tick={{ fontSize: 11 }} />
-              <YAxis tick={{ fontSize: 11 }} />
-              <Tooltip formatter={(v: number) => [v, 'Clients']} labelFormatter={l => `Mise: ${formatAmount(Number(l))}`} />
-              <Bar dataKey="clients" name="Clients" fill="#06b6d4" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </ChartCard>
-
-        <ChartCard title="Alertes ouvertes par type">
-          {data.alertsByType.length === 0 ? (
-            <div className="flex items-center justify-center h-40 text-gray-400 text-sm">Aucune alerte ouverte</div>
-          ) : (
-            <ResponsiveContainer width="100%" height={200}>
-              <PieChart>
-                <Pie data={data.alertsByType} dataKey="count" nameKey="type" cx="50%" cy="50%" outerRadius={75} label={({ type, count }) => `${type.replace('_', ' ')} (${count})`}>
-                  {data.alertsByType.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
-                </Pie>
-                <Tooltip />
-              </PieChart>
+          {/* Monthly bar */}
+          <div className="mt-4 pt-4 border-t border-gray-50">
+            <p className="text-xs font-semibold text-gray-500 mb-3">Revenus mensuels</p>
+            <ResponsiveContainer width="100%" height={100}>
+              <BarChart data={data.monthlyRevenue} margin={{ top: 0, right: 0, left: -30, bottom: 0 }}>
+                <XAxis dataKey="month" tick={{ fontSize: 9, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+                <Tooltip content={<CustomTooltip />} />
+                <Bar dataKey="amount" name="Montant" fill="#D4A017" radius={[4, 4, 0, 0]} maxBarSize={24} />
+              </BarChart>
             </ResponsiveContainer>
-          )}
-        </ChartCard>
+          </div>
+        </div>
       </div>
 
-      {/* ── Collector summary table ───────────────────────────────────────── */}
-      <ChartCard title="Résumé collecteurs — 30 derniers jours">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-gray-100 text-left text-xs text-gray-500 uppercase tracking-wide">
-                <th className="pb-2 pr-4">Collecteur</th>
-                <th className="pb-2 pr-4 text-right">Montant</th>
-                <th className="pb-2 pr-4 text-right">Opérations</th>
-                <th className="pb-2 text-right">Clients</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.topCollectors.map((c, i) => (
-                <tr key={i} className="border-b border-gray-50 hover:bg-gray-50">
-                  <td className="py-2 pr-4 font-medium text-gray-800">{c.name}</td>
-                  <td className="py-2 pr-4 text-right text-emerald-700 font-mono">{formatAmount(c.amount)}</td>
-                  <td className="py-2 pr-4 text-right text-gray-600">{c.count}</td>
-                  <td className="py-2 text-right text-gray-600">{c.clients}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </ChartCard>
+      {/* ── Extra KPIs row ───────────────────────────────────── */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <SmallKpi label="Versé aujourd'hui" value={`${fmtShort(kpis.todayVersed)} F`} color="#10b981" />
+        <SmallKpi
+          label="Écart du jour"
+          value={`${fmtShort(Math.abs(kpis.todayGap))} F`}
+          sub={(kpis.todayGap ?? 0) < 0 ? 'manquant' : (kpis.todayGap ?? 0) > 0 ? 'non versé' : 'équilibré'}
+          color={(kpis.todayGap ?? 0) !== 0 ? '#ef4444' : '#10b981'}
+        />
+        <SmallKpi label="Alertes ouvertes" value={`${kpis.pendingAlerts}`} color={kpis.pendingAlerts > 5 ? '#ef4444' : '#f59e0b'} />
+        <SmallKpi label="Annulations en attente" value={`${kpis.pendingVoids}`} color="#f97316" />
+      </div>
     </div>
   )
 }
 
-function KpiCard({ label, value, sub, color }: {
-  label: string; value: string | number; sub?: string; color: string
+/* ── KPI Card ─────────────────────────────────────────────── */
+function KpiCard({ label, value, sub, borderColor }: {
+  label: string; value: string; sub?: string | null; pct?: number | null
+  borderColor: string; dotColor: string
 }) {
-  const ring: Record<string, string> = {
-    indigo: 'border-indigo-100 bg-indigo-50', emerald: 'border-emerald-100 bg-emerald-50',
-    violet: 'border-violet-100 bg-violet-50', sky: 'border-sky-100 bg-sky-50',
-    amber: 'border-amber-100 bg-amber-50', orange: 'border-orange-100 bg-orange-50',
-    red: 'border-red-100 bg-red-50', teal: 'border-teal-100 bg-teal-50',
-  }
-  const text: Record<string, string> = {
-    indigo: 'text-indigo-700', emerald: 'text-emerald-700', violet: 'text-violet-700',
-    sky: 'text-sky-700', amber: 'text-amber-700', orange: 'text-orange-700', red: 'text-red-700',
-    teal: 'text-teal-700',
-  }
   return (
-    <div className={`rounded-xl border p-4 ${ring[color] ?? 'border-gray-100 bg-gray-50'}`}>
-      <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">{label}</p>
-      <p className={`text-2xl font-bold ${text[color] ?? 'text-gray-900'}`}>{value}</p>
-      {sub && <p className="text-xs text-gray-400 mt-0.5">{sub}</p>}
+    <div className="bg-white rounded-2xl shadow-sm overflow-hidden relative" style={{ borderTop: `4px solid ${borderColor}` }}>
+      <div className="p-5">
+        <div className="flex items-start justify-between mb-3">
+          <p className="text-sm font-medium text-gray-500">{label}</p>
+          <button className="text-gray-300 hover:text-gray-400">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>
+          </button>
+        </div>
+        <p className="text-3xl font-black text-gray-900 tracking-tight">{value}</p>
+        {sub && <p className="text-xs text-gray-400 mt-1.5">{sub}</p>}
+      </div>
     </div>
   )
 }
 
-function ChartCard({ title, children }: { title: string; children: React.ReactNode }) {
+/* ── Small KPI ────────────────────────────────────────────── */
+function SmallKpi({ label, value, sub, color }: { label: string; value: string; sub?: string; color: string }) {
   return (
-    <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
-      <h3 className="text-sm font-semibold text-gray-700 mb-4">{title}</h3>
-      {children}
+    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+      <p className="text-xs text-gray-400 font-medium mb-1">{label}</p>
+      <p className="text-xl font-bold" style={{ color }}>{value}</p>
+      {sub && <p className="text-xs text-gray-400 mt-0.5">{sub}</p>}
     </div>
   )
 }
