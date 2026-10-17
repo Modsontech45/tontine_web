@@ -43,6 +43,11 @@ export function DevicesPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['devices'] }),
   })
 
+  const restore = useMutation({
+    mutationFn: (id: string) => api.post(`/devices/${id}/restore`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['devices'] }),
+  })
+
   const devices: Device[] = data?.data ?? []
   const pending = devices.filter((d) => d.status === 'PENDING')
   const approved = devices.filter((d) => d.status === 'APPROVED')
@@ -78,7 +83,7 @@ export function DevicesPage() {
           {pending.length > 0 && (
             <div className="space-y-2">
               <p className="text-xs font-semibold text-red-600 uppercase tracking-wider px-1">Nouveaux appareils — approbation requise</p>
-              {pending.map((d) => <DeviceCard key={d.id} device={d} onApprove={() => approve.mutate(d.id)} onRevoke={() => revoke.mutate(d.id)} approving={approve.isPending} revoking={revoke.isPending} />)}
+              {pending.map((d) => <DeviceCard key={d.id} device={d} onApprove={() => approve.mutate(d.id)} onRevoke={() => revoke.mutate(d.id)} approving={approve.isPending} revoking={revoke.isPending} restoring={restore.isPending} />)}
             </div>
           )}
 
@@ -86,7 +91,7 @@ export function DevicesPage() {
           {approved.length > 0 && (
             <div className="space-y-2">
               {pending.length > 0 && <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-1 pt-2">Appareils approuvés</p>}
-              {approved.map((d) => <DeviceCard key={d.id} device={d} onRevoke={() => revoke.mutate(d.id)} approving={approve.isPending} revoking={revoke.isPending} />)}
+              {approved.map((d) => <DeviceCard key={d.id} device={d} onRevoke={() => revoke.mutate(d.id)} approving={approve.isPending} revoking={revoke.isPending} restoring={restore.isPending} />)}
             </div>
           )}
 
@@ -94,7 +99,7 @@ export function DevicesPage() {
           {revoked.length > 0 && (
             <div className="space-y-2">
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-1 pt-2">Révoqués</p>
-              {revoked.map((d) => <DeviceCard key={d.id} device={d} approving={approve.isPending} revoking={revoke.isPending} />)}
+              {revoked.map((d) => <DeviceCard key={d.id} device={d} onRestore={() => restore.mutate(d.id)} approving={approve.isPending} revoking={revoke.isPending} restoring={restore.isPending} />)}
             </div>
           )}
         </div>
@@ -103,12 +108,14 @@ export function DevicesPage() {
   )
 }
 
-function DeviceCard({ device, onApprove, onRevoke, approving, revoking }: {
+function DeviceCard({ device, onApprove, onRevoke, onRestore, approving, revoking, restoring }: {
   device: Device
   onApprove?: () => void
   onRevoke?: () => void
+  onRestore?: () => void
   approving: boolean
   revoking: boolean
+  restoring: boolean
 }) {
   const isNew = device.status === 'PENDING'
   const isRevoked = device.status === 'REVOKED'
@@ -171,6 +178,15 @@ function DeviceCard({ device, onApprove, onRevoke, approving, revoking }: {
             className="px-4 py-1.5 text-sm font-semibold bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors"
           >
             Approuver
+          </button>
+        )}
+        {isRevoked && onRestore && (
+          <button
+            onClick={onRestore}
+            disabled={restoring}
+            className="px-4 py-1.5 text-sm font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+          >
+            Restaurer
           </button>
         )}
         {!isRevoked && onRevoke && (
