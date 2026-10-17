@@ -1,33 +1,41 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
 import { api } from '../lib/api'
-import { formatDateTime, STATUS_LABELS } from '../lib/format'
+import { formatDateTime } from '../lib/format'
 
 interface Device {
   id: string
   model: string
   androidId: string
   appVersion: string
-  status: string
-  lastSyncAt: string
-  user: { firstName: string; lastName: string }
+  status: 'PENDING' | 'APPROVED' | 'REVOKED'
+  lastLoginAt: string | null
+  lastLoginLat: number | null
+  lastLoginLng: number | null
+  lastSyncAt: string | null
+  createdAt: string
+  user: { id: string; firstName: string; lastName: string; phone: string }
+}
+
+function StatusBadge({ status }: { status: Device['status'] }) {
+  if (status === 'APPROVED')
+    return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800"><span className="w-2 h-2 rounded-full bg-green-500 inline-block" />Approuvé</span>
+  if (status === 'PENDING')
+    return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700"><span className="w-2 h-2 rounded-full bg-red-500 inline-block animate-pulse" />Nouveau</span>
+  return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-500"><span className="w-2 h-2 rounded-full bg-gray-400 inline-block" />Révoqué</span>
 }
 
 export function DevicesPage() {
   const qc = useQueryClient()
-  const [approvedIds, setApprovedIds] = useState<Set<string>>(new Set())
 
   const { data, isLoading } = useQuery({
     queryKey: ['devices'],
     queryFn: () => api.get('/devices').then((r) => r.data),
+    refetchInterval: 30_000,
   })
 
   const approve = useMutation({
     mutationFn: (id: string) => api.post(`/devices/${id}/approve`),
-    onSuccess: (_data, id) => {
-      setApprovedIds((prev) => new Set([...prev, id]))
-      qc.invalidateQueries({ queryKey: ['devices'] })
-    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['devices'] }),
   })
 
   const revoke = useMutation({
@@ -35,77 +43,146 @@ export function DevicesPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['devices'] }),
   })
 
+  const devices: Device[] = data?.data ?? []
+  const pending = devices.filter((d) => d.status === 'PENDING')
+  const approved = devices.filter((d) => d.status === 'APPROVED')
+  const revoked = devices.filter((d) => d.status === 'REVOKED')
+
   return (
-    <div>
-      <h2 className="text-2xl font-semibold text-gray-900 mb-6">Appareils</h2>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">Appareils</h2>
+          <p className="text-sm text-gray-500 mt-1">Gérez les appareils des collecteurs</p>
+        </div>
+        <div className="flex gap-3 text-sm">
+          {pending.length > 0 && (
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-50 text-red-700 rounded-lg font-medium border border-red-200">
+              <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse inline-block" />
+              {pending.length} en attente
+            </span>
+          )}
+          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-50 text-green-700 rounded-lg font-medium border border-green-200">
+            {approved.length} approuvé{approved.length !== 1 ? 's' : ''}
+          </span>
+        </div>
+      </div>
+
       {isLoading ? (
-        <p className="text-gray-500">Chargement...</p>
+        <div className="flex items-center justify-center h-40 text-gray-400">Chargement...</div>
+      ) : devices.length === 0 ? (
+        <div className="text-center py-16 text-gray-400">Aucun appareil enregistré</div>
       ) : (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b">
-              <tr>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Collecteur</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Modèle / ID Android</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Version</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Statut</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Dernière sync</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {data?.data?.map((device: Device) => (
-                <tr key={device.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3">{device.user?.firstName} {device.user?.lastName}</td>
-                  <td className="px-4 py-3">
-                    <p className="text-gray-800">{device.model || '—'}</p>
-                    {device.androidId && (
-                      <p className="text-xs font-mono text-gray-400 mt-0.5">{device.androidId}</p>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-gray-600">{device.appVersion}</td>
-                  <td className="px-4 py-3">
-                    <span className={`px-2 py-1 rounded text-xs ${
-                      device.status === 'APPROVED' ? 'bg-green-50 text-green-700' :
-                      device.status === 'PENDING' ? 'bg-yellow-50 text-yellow-700' :
-                      'bg-red-50 text-red-700'
-                    }`}>
-                      {STATUS_LABELS[device.status] ?? device.status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-gray-500 text-xs">
-                    {device.lastSyncAt ? formatDateTime(device.lastSyncAt) : '—'}
-                  </td>
-                  <td className="px-4 py-3 space-x-2">
-                    {device.status === 'PENDING' && (
-                      approvedIds.has(device.id) ? (
-                        <span className="text-green-600 text-xs font-medium">Approuvé ✓</span>
-                      ) : (
-                        <button
-                          onClick={() => approve.mutate(device.id)}
-                          disabled={approve.isPending}
-                          className="text-green-600 hover:underline text-xs disabled:opacity-50"
-                        >
-                          Approuver
-                        </button>
-                      )
-                    )}
-                    {device.status !== 'REVOKED' && (
-                      <button
-                        onClick={() => revoke.mutate(device.id)}
-                        disabled={revoke.isPending}
-                        className="text-red-600 hover:underline text-xs disabled:opacity-50"
-                      >
-                        Révoquer
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="space-y-3">
+          {/* Pending (new) devices — shown first */}
+          {pending.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-red-600 uppercase tracking-wider px-1">Nouveaux appareils — approbation requise</p>
+              {pending.map((d) => <DeviceCard key={d.id} device={d} onApprove={() => approve.mutate(d.id)} onRevoke={() => revoke.mutate(d.id)} approving={approve.isPending} revoking={revoke.isPending} />)}
+            </div>
+          )}
+
+          {/* Approved devices */}
+          {approved.length > 0 && (
+            <div className="space-y-2">
+              {pending.length > 0 && <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-1 pt-2">Appareils approuvés</p>}
+              {approved.map((d) => <DeviceCard key={d.id} device={d} onRevoke={() => revoke.mutate(d.id)} approving={approve.isPending} revoking={revoke.isPending} />)}
+            </div>
+          )}
+
+          {/* Revoked devices */}
+          {revoked.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-1 pt-2">Révoqués</p>
+              {revoked.map((d) => <DeviceCard key={d.id} device={d} approving={approve.isPending} revoking={revoke.isPending} />)}
+            </div>
+          )}
         </div>
       )}
+    </div>
+  )
+}
+
+function DeviceCard({ device, onApprove, onRevoke, approving, revoking }: {
+  device: Device
+  onApprove?: () => void
+  onRevoke?: () => void
+  approving: boolean
+  revoking: boolean
+}) {
+  const isNew = device.status === 'PENDING'
+  const isRevoked = device.status === 'REVOKED'
+
+  const mapsUrl = device.lastLoginLat && device.lastLoginLng
+    ? `https://www.google.com/maps?q=${device.lastLoginLat},${device.lastLoginLng}`
+    : null
+
+  return (
+    <div className={`rounded-xl border-2 p-4 flex items-start gap-4 transition-all ${
+      isNew ? 'border-red-300 bg-red-50' :
+      isRevoked ? 'border-gray-200 bg-gray-50 opacity-60' :
+      'border-green-200 bg-white'
+    }`}>
+      {/* Status dot */}
+      <div className={`mt-1 w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+        isNew ? 'bg-red-100' : isRevoked ? 'bg-gray-100' : 'bg-green-100'
+      }`}>
+        <span className="text-lg">{isNew ? '📵' : isRevoked ? '🚫' : '📱'}</span>
+      </div>
+
+      {/* Info */}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="font-semibold text-gray-900">
+            {device.user?.firstName} {device.user?.lastName}
+          </span>
+          <StatusBadge status={device.status} />
+        </div>
+        <p className="text-sm text-gray-500 mt-0.5">{device.user?.phone}</p>
+
+        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
+          <span>📲 {device.model || '—'}</span>
+          <span className="font-mono">{device.androidId}</span>
+          <span>v{device.appVersion}</span>
+        </div>
+
+        <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-400">
+          {device.lastLoginAt && (
+            <span>Dernière connexion : {formatDateTime(device.lastLoginAt)}</span>
+          )}
+          {mapsUrl ? (
+            <a href={mapsUrl} target="_blank" rel="noopener noreferrer"
+               className="text-blue-600 hover:underline font-medium">
+              📍 Voir la localisation
+            </a>
+          ) : (
+            <span>📍 Localisation non disponible</span>
+          )}
+          <span>Enregistré le {formatDateTime(device.createdAt)}</span>
+        </div>
+      </div>
+
+      {/* Actions */}
+      <div className="flex flex-col gap-2 flex-shrink-0">
+        {isNew && onApprove && (
+          <button
+            onClick={onApprove}
+            disabled={approving}
+            className="px-4 py-1.5 text-sm font-semibold bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors"
+          >
+            Approuver
+          </button>
+        )}
+        {!isRevoked && onRevoke && (
+          <button
+            onClick={onRevoke}
+            disabled={revoking}
+            className="px-4 py-1.5 text-sm font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50 disabled:opacity-50 transition-colors"
+          >
+            Révoquer
+          </button>
+        )}
+      </div>
     </div>
   )
 }
