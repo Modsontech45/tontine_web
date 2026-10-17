@@ -3,15 +3,16 @@ import { logout, getStoredUser } from '../lib/auth'
 import { ROLE_LABELS } from '../lib/format'
 
 const navItems = [
-  { to: '/', label: 'Tableau de bord', exact: true },
-  { to: '/clients', label: 'Clients' },
-  { to: '/caisse', label: 'Caisse' },
-  { to: '/stickers', label: 'Carnets / Stickers' },
-  { to: '/users', label: 'Utilisateurs' },
-  { to: '/devices', label: 'Appareils' },
-  { to: '/zones', label: 'Zones' },
-  { to: '/settings', label: 'Paramètres' },
-  { to: '/audit-log', label: 'Journal d\'audit' },
+  { to: '/', label: '📊 Tableau de bord', exact: true },
+  { to: '/activity', label: '🔴 Activité en direct' },
+  { to: '/clients', label: '👥 Clients' },
+  { to: '/caisse', label: '💰 Caisse' },
+  { to: '/stickers', label: '📋 Carnets / Stickers' },
+  { to: '/users', label: '👤 Utilisateurs' },
+  { to: '/devices', label: '📱 Appareils' },
+  { to: '/zones', label: '📍 Zones' },
+  { to: '/settings', label: '⚙️ Paramètres' },
+  { to: '/audit-log', label: '📜 Journal d\'audit' },
 ]
 
 export function DashboardLayout() {

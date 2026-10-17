@@ -12,6 +12,7 @@ import { StickersPage } from './pages/Stickers'
 import { ClientDetailPage } from './pages/ClientDetail'
 import { CaissePage } from './pages/Caisse'
 import { ForgotPasswordPage } from './pages/ForgotPassword'
+import { ActivityPage } from './pages/Activity'
 import { isAuthenticated } from './lib/auth'
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
@@ -42,6 +43,7 @@ export default function App() {
         <Route path="clients/:id" element={<ClientDetailPage />} />
         <Route path="stickers" element={<StickersPage />} />
         <Route path="caisse" element={<CaissePage />} />
+        <Route path="activity" element={<ActivityPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

@@ -9,19 +9,43 @@ interface Device {
   appVersion: string
   status: 'PENDING' | 'APPROVED' | 'REVOKED'
   lastLoginAt: string | null
+  lastSyncAt: string | null
   lastLoginLat: number | null
   lastLoginLng: number | null
-  lastSyncAt: string | null
   createdAt: string
   user: { id: string; firstName: string; lastName: string; phone: string }
 }
 
+function onlineStatus(device: Device): 'online' | 'recent' | 'offline' {
+  const now = Date.now()
+  if (device.lastSyncAt && now - new Date(device.lastSyncAt).getTime() < 30 * 60 * 1000) return 'online'
+  if (device.lastLoginAt && now - new Date(device.lastLoginAt).getTime() < 2 * 60 * 60 * 1000) return 'recent'
+  return 'offline'
+}
+
+function timeAgo(dateStr: string | null): string {
+  if (!dateStr) return '—'
+  const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000)
+  if (diff < 60) return 'il y a quelques secondes'
+  if (diff < 3600) return `il y a ${Math.floor(diff / 60)} min`
+  if (diff < 86400) return `il y a ${Math.floor(diff / 3600)}h`
+  return formatDateTime(dateStr)
+}
+
+function OnlineDot({ status }: { status: 'online' | 'recent' | 'offline' }) {
+  if (status === 'online')
+    return <span className="inline-flex items-center gap-1 text-xs font-semibold text-green-700"><span className="w-2 h-2 rounded-full bg-green-500 animate-pulse inline-block" />En ligne</span>
+  if (status === 'recent')
+    return <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-600"><span className="w-2 h-2 rounded-full bg-amber-400 inline-block" />Récent</span>
+  return <span className="inline-flex items-center gap-1 text-xs text-gray-400"><span className="w-2 h-2 rounded-full bg-gray-300 inline-block" />Hors ligne</span>
+}
+
 function StatusBadge({ status }: { status: Device['status'] }) {
   if (status === 'APPROVED')
-    return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800"><span className="w-2 h-2 rounded-full bg-green-500 inline-block" />Approuvé</span>
+    return <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-800">Approuvé</span>
   if (status === 'PENDING')
-    return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700"><span className="w-2 h-2 rounded-full bg-red-500 inline-block animate-pulse" />Nouveau</span>
-  return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-500"><span className="w-2 h-2 rounded-full bg-gray-400 inline-block" />Révoqué</span>
+    return <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-700 animate-pulse">Nouveau</span>
+  return <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-500">Révoqué</span>
 }
 
 export function DevicesPage() {
@@ -37,12 +61,10 @@ export function DevicesPage() {
     mutationFn: (id: string) => api.post(`/devices/${id}/approve`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['devices'] }),
   })
-
   const revoke = useMutation({
     mutationFn: (id: string) => api.post(`/devices/${id}/revoke`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['devices'] }),
   })
-
   const restore = useMutation({
     mutationFn: (id: string) => api.post(`/devices/${id}/restore`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['devices'] }),
@@ -52,55 +74,56 @@ export function DevicesPage() {
   const pending = devices.filter((d) => d.status === 'PENDING')
   const approved = devices.filter((d) => d.status === 'APPROVED')
   const revoked = devices.filter((d) => d.status === 'REVOKED')
+  const onlineCount = approved.filter((d) => onlineStatus(d) === 'online').length
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Appareils</h2>
-          <p className="text-sm text-gray-500 mt-1">Gérez les appareils des collecteurs</p>
+          <p className="text-sm text-gray-500 mt-0.5">Gérez les appareils des collecteurs · actualisation auto toutes les 30s</p>
         </div>
-        <div className="flex gap-3 text-sm">
+        <div className="flex gap-2 text-sm flex-wrap">
           {pending.length > 0 && (
-            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-50 text-red-700 rounded-lg font-medium border border-red-200">
-              <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse inline-block" />
-              {pending.length} en attente
+            <span className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 text-red-700 rounded-lg font-medium border border-red-200">
+              <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />{pending.length} en attente
             </span>
           )}
-          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-50 text-green-700 rounded-lg font-medium border border-green-200">
-            {approved.length} approuvé{approved.length !== 1 ? 's' : ''}
+          <span className="flex items-center gap-1.5 px-3 py-1.5 bg-green-50 text-green-700 rounded-lg font-medium border border-green-200">
+            <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />{onlineCount} en ligne
+          </span>
+          <span className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 text-gray-600 rounded-lg font-medium border border-gray-200">
+            {approved.length} approuvés
           </span>
         </div>
       </div>
 
       {isLoading ? (
         <div className="flex items-center justify-center h-40 text-gray-400">Chargement...</div>
-      ) : devices.length === 0 ? (
-        <div className="text-center py-16 text-gray-400">Aucun appareil enregistré</div>
       ) : (
-        <div className="space-y-3">
-          {/* Pending (new) devices — shown first */}
-          {pending.length > 0 && (
-            <div className="space-y-2">
-              <p className="text-xs font-semibold text-red-600 uppercase tracking-wider px-1">Nouveaux appareils — approbation requise</p>
-              {pending.map((d) => <DeviceCard key={d.id} device={d} onApprove={() => approve.mutate(d.id)} onRevoke={() => revoke.mutate(d.id)} approving={approve.isPending} revoking={revoke.isPending} restoring={restore.isPending} />)}
-            </div>
-          )}
-
-          {/* Approved devices */}
-          {approved.length > 0 && (
-            <div className="space-y-2">
-              {pending.length > 0 && <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-1 pt-2">Appareils approuvés</p>}
-              {approved.map((d) => <DeviceCard key={d.id} device={d} onRevoke={() => revoke.mutate(d.id)} approving={approve.isPending} revoking={revoke.isPending} restoring={restore.isPending} />)}
-            </div>
-          )}
-
-          {/* Revoked devices */}
-          {revoked.length > 0 && (
-            <div className="space-y-2">
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-1 pt-2">Révoqués</p>
-              {revoked.map((d) => <DeviceCard key={d.id} device={d} onRestore={() => restore.mutate(d.id)} approving={approve.isPending} revoking={revoke.isPending} restoring={restore.isPending} />)}
-            </div>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 border-b border-gray-100">
+              <tr>
+                <th className="text-left px-4 py-3 font-semibold text-gray-600">Collecteur</th>
+                <th className="text-left px-4 py-3 font-semibold text-gray-600">Appareil</th>
+                <th className="text-left px-4 py-3 font-semibold text-gray-600">Statut</th>
+                <th className="text-left px-4 py-3 font-semibold text-gray-600">Connexion</th>
+                <th className="text-left px-4 py-3 font-semibold text-gray-600">Localisation</th>
+                <th className="text-left px-4 py-3 font-semibold text-gray-600">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {/* Pending first */}
+              {pending.map((d) => <DeviceRow key={d.id} device={d} onApprove={() => approve.mutate(d.id)} onRevoke={() => revoke.mutate(d.id)} busy={approve.isPending || revoke.isPending || restore.isPending} />)}
+              {/* Approved */}
+              {approved.map((d) => <DeviceRow key={d.id} device={d} onRevoke={() => revoke.mutate(d.id)} busy={approve.isPending || revoke.isPending || restore.isPending} />)}
+              {/* Revoked */}
+              {revoked.map((d) => <DeviceRow key={d.id} device={d} onRestore={() => restore.mutate(d.id)} busy={approve.isPending || revoke.isPending || restore.isPending} />)}
+            </tbody>
+          </table>
+          {devices.length === 0 && (
+            <div className="text-center py-12 text-gray-400">Aucun appareil enregistré</div>
           )}
         </div>
       )}
@@ -108,97 +131,76 @@ export function DevicesPage() {
   )
 }
 
-function DeviceCard({ device, onApprove, onRevoke, onRestore, approving, revoking, restoring }: {
+function DeviceRow({ device, onApprove, onRevoke, onRestore, busy }: {
   device: Device
   onApprove?: () => void
   onRevoke?: () => void
   onRestore?: () => void
-  approving: boolean
-  revoking: boolean
-  restoring: boolean
+  busy: boolean
 }) {
-  const isNew = device.status === 'PENDING'
-  const isRevoked = device.status === 'REVOKED'
-
+  const status = onlineStatus(device)
   const mapsUrl = device.lastLoginLat && device.lastLoginLng
     ? `https://www.google.com/maps?q=${device.lastLoginLat},${device.lastLoginLng}`
     : null
 
+  const rowBg =
+    device.status === 'PENDING' ? 'bg-red-50 hover:bg-red-100' :
+    device.status === 'REVOKED' ? 'bg-gray-50 opacity-70 hover:opacity-90' :
+    'hover:bg-blue-50/30'
+
   return (
-    <div className={`rounded-xl border-2 p-4 flex items-start gap-4 transition-all ${
-      isNew ? 'border-red-300 bg-red-50' :
-      isRevoked ? 'border-gray-200 bg-gray-50 opacity-60' :
-      'border-green-200 bg-white'
-    }`}>
-      {/* Status dot */}
-      <div className={`mt-1 w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
-        isNew ? 'bg-red-100' : isRevoked ? 'bg-gray-100' : 'bg-green-100'
-      }`}>
-        <span className="text-lg">{isNew ? '📵' : isRevoked ? '🚫' : '📱'}</span>
-      </div>
-
-      {/* Info */}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="font-semibold text-gray-900">
-            {device.user?.firstName} {device.user?.lastName}
-          </span>
-          <StatusBadge status={device.status} />
-        </div>
-        <p className="text-sm text-gray-500 mt-0.5">{device.user?.phone}</p>
-
-        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
-          <span>📲 {device.model || '—'}</span>
-          <span className="font-mono">{device.androidId}</span>
-          <span>v{device.appVersion}</span>
-        </div>
-
-        <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-400">
-          {device.lastLoginAt && (
-            <span>Dernière connexion : {formatDateTime(device.lastLoginAt)}</span>
+    <tr className={`transition-colors ${rowBg}`}>
+      <td className="px-4 py-3">
+        <div className="font-medium text-gray-900">{device.user?.firstName} {device.user?.lastName}</div>
+        <div className="text-xs text-gray-400 mt-0.5">{device.user?.phone}</div>
+      </td>
+      <td className="px-4 py-3">
+        <div className="text-gray-800">{device.model || '—'}</div>
+        <div className="text-xs font-mono text-gray-400 mt-0.5">{device.androidId}</div>
+        <div className="text-xs text-gray-400">v{device.appVersion}</div>
+      </td>
+      <td className="px-4 py-3 space-y-1">
+        <div><StatusBadge status={device.status} /></div>
+        {device.status === 'APPROVED' && <OnlineDot status={status} />}
+      </td>
+      <td className="px-4 py-3">
+        {device.lastLoginAt ? (
+          <>
+            <div className="text-gray-700 font-medium">{timeAgo(device.lastLoginAt)}</div>
+            <div className="text-xs text-gray-400">{formatDateTime(device.lastLoginAt)}</div>
+          </>
+        ) : <span className="text-gray-400">—</span>}
+      </td>
+      <td className="px-4 py-3">
+        {mapsUrl ? (
+          <a href={mapsUrl} target="_blank" rel="noopener noreferrer"
+             className="inline-flex items-center gap-1 text-blue-600 hover:underline text-sm font-medium">
+            📍 Voir
+          </a>
+        ) : <span className="text-gray-400 text-xs">Non disponible</span>}
+      </td>
+      <td className="px-4 py-3">
+        <div className="flex gap-2 flex-wrap">
+          {device.status === 'PENDING' && onApprove && (
+            <button onClick={onApprove} disabled={busy}
+              className="px-3 py-1 text-xs font-semibold bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50">
+              Approuver
+            </button>
           )}
-          {mapsUrl ? (
-            <a href={mapsUrl} target="_blank" rel="noopener noreferrer"
-               className="text-blue-600 hover:underline font-medium">
-              📍 Voir la localisation
-            </a>
-          ) : (
-            <span>📍 Localisation non disponible</span>
+          {device.status === 'REVOKED' && onRestore && (
+            <button onClick={onRestore} disabled={busy}
+              className="px-3 py-1 text-xs font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
+              Restaurer
+            </button>
           )}
-          <span>Enregistré le {formatDateTime(device.createdAt)}</span>
+          {device.status !== 'REVOKED' && onRevoke && (
+            <button onClick={onRevoke} disabled={busy}
+              className="px-3 py-1 text-xs font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50 disabled:opacity-50">
+              Révoquer
+            </button>
+          )}
         </div>
-      </div>
-
-      {/* Actions */}
-      <div className="flex flex-col gap-2 flex-shrink-0">
-        {isNew && onApprove && (
-          <button
-            onClick={onApprove}
-            disabled={approving}
-            className="px-4 py-1.5 text-sm font-semibold bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors"
-          >
-            Approuver
-          </button>
-        )}
-        {isRevoked && onRestore && (
-          <button
-            onClick={onRestore}
-            disabled={restoring}
-            className="px-4 py-1.5 text-sm font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
-          >
-            Restaurer
-          </button>
-        )}
-        {!isRevoked && onRevoke && (
-          <button
-            onClick={onRevoke}
-            disabled={revoking}
-            className="px-4 py-1.5 text-sm font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50 disabled:opacity-50 transition-colors"
-          >
-            Révoquer
-          </button>
-        )}
-      </div>
-    </div>
+      </td>
+    </tr>
   )
 }
