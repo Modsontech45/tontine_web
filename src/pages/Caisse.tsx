@@ -159,10 +159,14 @@ function ConfirmModal({
   )
 }
 
+import { getStoredUser } from '../lib/auth'
+
 export function CaissePage() {
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10))
   const [confirming, setConfirming] = useState<any | null>(null)
   const qc = useQueryClient()
+  const user = getStoredUser()
+  const isReadOnly = user?.role === 'SUPER_ADMIN'
 
   const { data: pending, isLoading: loadingPending } = useQuery({
     queryKey: ['handovers-pending', date],
@@ -195,7 +199,7 @@ export function CaissePage() {
         />
       </div>
 
-      {confirming && (
+      {confirming && !isReadOnly && (
         <ConfirmModal
           collector={confirming}
           expectedAmount={confirming.expected_amount}
@@ -240,12 +244,18 @@ export function CaissePage() {
                     <td className="px-4 py-3 text-gray-600">{row.collections_count} encaissement{row.collections_count > 1 ? 's' : ''}</td>
                     <td className="px-4 py-3 font-bold text-gray-900">{formatAmount(row.expected_amount)}</td>
                     <td className="px-4 py-3 text-right">
-                      <button
-                        onClick={() => setConfirming(row)}
-                        className="px-3 py-1.5 text-xs bg-green-700 text-white rounded hover:bg-green-800 font-medium"
-                      >
-                        Confirmer versement
-                      </button>
+                      {isReadOnly ? (
+                        <span className="px-3 py-1.5 text-xs bg-gray-100 text-gray-400 rounded font-medium">
+                          Lecture seule
+                        </span>
+                      ) : (
+                        <button
+                          onClick={() => setConfirming(row)}
+                          className="px-3 py-1.5 text-xs bg-green-700 text-white rounded hover:bg-green-800 font-medium"
+                        >
+                          Confirmer versement
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}

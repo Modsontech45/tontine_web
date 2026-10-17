@@ -17,6 +17,7 @@ interface DashboardData {
     openCycles: number; closedCycles: number; paidCycles: number; cancelledCycles: number
     pendingAlerts: number; pendingVoids: number
     todayVersed: number; todayGap: number
+    expectedToday: number; remainingToday: number
   }
   dailyCollections: Array<{ date: string; amount: number; count: number }>
   monthlyRevenue: Array<{ month: string; amount: number; count: number }>
@@ -110,21 +111,27 @@ export function DashboardPage() {
         </div>
       </div>
 
-      {/* ── 4 KPI Cards ──────────────────────────────────────── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
+      {/* ── 5 KPI Cards ──────────────────────────────────────── */}
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-5">
         <KpiCard
           label="Collecté aujourd'hui"
           value={`${fmtShort(kpis.todayAmount)} F`}
           sub={`${kpis.todayCount} opérations`}
-          pct={null}
           borderColor="#6366f1"
           dotColor="bg-indigo-500"
+        />
+        <KpiCard
+          label="À encaisser aujourd'hui"
+          value={`${fmtShort(kpis.remainingToday)} F`}
+          sub={kpis.remainingToday === 0 ? 'Tout collecté ✓' : `sur ${fmtShort(kpis.expectedToday)} F attendus`}
+          borderColor={kpis.remainingToday > 0 ? '#f97316' : '#10b981'}
+          dotColor="bg-orange-500"
+          highlight={kpis.remainingToday > 0}
         />
         <KpiCard
           label="Collecté ce mois"
           value={`${fmtShort(kpis.monthAmount)} F`}
           sub={`${kpis.monthCount} opérations`}
-          pct={null}
           borderColor="#f59e0b"
           dotColor="bg-amber-500"
         />
@@ -132,7 +139,6 @@ export function DashboardPage() {
           label="Clients actifs"
           value={`${kpis.activeClients}`}
           sub={`${kpis.suspendedClients} suspendus`}
-          pct={null}
           borderColor="#06b6d4"
           dotColor="bg-cyan-500"
         />
@@ -140,7 +146,6 @@ export function DashboardPage() {
           label="Cycles ouverts"
           value={`${kpis.openCycles}`}
           sub={kpis.pendingAlerts > 0 ? `${kpis.pendingAlerts} alertes` : 'Aucune alerte'}
-          pct={null}
           borderColor="#10b981"
           dotColor="bg-emerald-500"
         />
@@ -311,18 +316,17 @@ export function DashboardPage() {
 }
 
 /* ── KPI Card ─────────────────────────────────────────────── */
-function KpiCard({ label, value, sub, borderColor }: {
-  label: string; value: string; sub?: string | null; pct?: number | null
-  borderColor: string; dotColor: string
+function KpiCard({ label, value, sub, borderColor, highlight }: {
+  label: string; value: string; sub?: string | null
+  borderColor: string; dotColor: string; highlight?: boolean
 }) {
   return (
-    <div className="bg-white rounded-2xl shadow-sm overflow-hidden relative" style={{ borderTop: `4px solid ${borderColor}` }}>
+    <div className={`rounded-2xl shadow-sm overflow-hidden relative ${highlight ? 'ring-2 ring-orange-300' : 'bg-white'}`}
+         style={{ borderTop: `4px solid ${borderColor}`, background: highlight ? '#fff7ed' : 'white' }}>
       <div className="p-5">
         <div className="flex items-start justify-between mb-3">
-          <p className="text-sm font-medium text-gray-500">{label}</p>
-          <button className="text-gray-300 hover:text-gray-400">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>
-          </button>
+          <p className="text-sm font-medium text-gray-500 leading-tight">{label}</p>
+          {highlight && <span className="text-xs font-bold text-orange-500 bg-orange-100 px-1.5 py-0.5 rounded-full">En attente</span>}
         </div>
         <p className="text-3xl font-black text-gray-900 tracking-tight">{value}</p>
         {sub && <p className="text-xs text-gray-400 mt-1.5">{sub}</p>}
