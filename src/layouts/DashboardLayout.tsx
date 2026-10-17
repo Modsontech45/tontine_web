@@ -2,18 +2,22 @@ import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { logout, getStoredUser } from '../lib/auth'
 import { ROLE_LABELS } from '../lib/format'
 
-const MENU = [
+type NavItem = { to: string; label: string; exact?: boolean; icon: React.FC<{active?: boolean}>; roles?: string[] }
+
+const MENU: NavItem[] = [
   { to: '/', label: 'Tableau de bord', exact: true, icon: IconDashboard },
   { to: '/activity', label: 'Activité en direct', icon: IconActivity },
   { to: '/clients', label: 'Clients', icon: IconClients },
   { to: '/caisse', label: 'Caisse', icon: IconCaisse },
   { to: '/stickers', label: 'Carnets / Stickers', icon: IconStickers },
+  { to: '/credit', label: 'Demandes de crédit', icon: IconCredit, roles: ['SUPER_ADMIN', 'ADMIN', 'CONTROLLER'] },
 ]
 
-const GENERAL = [
+const GENERAL: NavItem[] = [
   { to: '/users', label: 'Utilisateurs', icon: IconUsers },
   { to: '/devices', label: 'Appareils', icon: IconDevices },
   { to: '/zones', label: 'Zones', icon: IconZones },
+  { to: '/credit-config', label: 'Config crédit', icon: IconCreditConfig, roles: ['SUPER_ADMIN', 'ADMIN'] },
   { to: '/settings', label: 'Paramètres', icon: IconSettings },
   { to: '/audit-log', label: 'Journal d\'audit', icon: IconAudit },
 ]
@@ -26,6 +30,8 @@ export function DashboardLayout() {
     logout()
     navigate('/login')
   }
+
+  const role = user?.role ?? ''
 
   const initials = user?.first_name
     ? `${user.first_name[0]}${user.last_name?.[0] ?? ''}`.toUpperCase()
@@ -49,8 +55,8 @@ export function DashboardLayout() {
 
         {/* Nav */}
         <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-6">
-          <NavSection label="MENU" items={MENU} />
-          <NavSection label="GÉNÉRAL" items={GENERAL} />
+          <NavSection label="MENU" items={MENU.filter(i => !i.roles || i.roles.includes(role))} />
+          <NavSection label="GÉNÉRAL" items={GENERAL.filter(i => !i.roles || i.roles.includes(role))} />
         </nav>
 
         {/* User card */}
@@ -94,7 +100,7 @@ export function DashboardLayout() {
   )
 }
 
-function NavSection({ label, items }: { label: string; items: typeof MENU }) {
+function NavSection({ label, items }: { label: string; items: NavItem[] }) {
   return (
     <div>
       <p className="text-xs font-semibold px-3 mb-2 tracking-widest" style={{ color: '#475569' }}>{label}</p>
@@ -167,6 +173,12 @@ function IconSettings({ active }: { active?: boolean }) {
 }
 function IconAudit({ active }: { active?: boolean }) {
   return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={active ? '#D4A017' : 'currentColor'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="12" y2="17"/></svg>
+}
+function IconCredit({ active }: { active?: boolean }) {
+  return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={active ? '#D4A017' : 'currentColor'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+}
+function IconCreditConfig({ active }: { active?: boolean }) {
+  return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={active ? '#D4A017' : 'currentColor'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/><line x1="7" y1="10" x2="7" y2="10.01"/><line x1="12" y1="8" x2="12" y2="13"/></svg>
 }
 function IconLogout() {
   return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16,17 21,12 16,7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
