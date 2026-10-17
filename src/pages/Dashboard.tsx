@@ -3,7 +3,7 @@ import {
   AreaChart, Area, BarChart, Bar,
   PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer, Legend,
+  Tooltip, ResponsiveContainer,
 } from 'recharts'
 import { api } from '../lib/api'
 import { formatAmount } from '../lib/format'

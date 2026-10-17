@@ -65,7 +65,8 @@ const ACTION_COLORS: Record<string, string> = {
   RESET_PIN: 'bg-amber-100 text-amber-700',
 }
 
-function timeAgo(dateStr: string): string {
+function timeAgo(dateStr: string | null): string {
+  if (!dateStr) return '—'
   const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000)
   if (diff < 60) return 'à l\'instant'
   if (diff < 3600) return `il y a ${Math.floor(diff / 60)} min`
