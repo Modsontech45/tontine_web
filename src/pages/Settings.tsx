@@ -18,6 +18,8 @@ const SETTING_LABELS: Record<string, { label: string; desc: string; unit?: strin
   company_name:                   { label: 'Nom de la société',                 desc: 'Nom affiché sur les documents et notifications' },
 }
 
+const HIDDEN_SETTINGS = new Set(['sms_weekly_enabled', 'sms_unit_cost_xof'])
+
 function parseValue(raw: string, original: unknown): unknown {
   if (typeof original === 'boolean') return raw === 'true'
   if (typeof original === 'number') {
@@ -112,7 +114,7 @@ export function SettingsPage() {
         <p className="text-gray-400 text-sm">Chargement...</p>
       ) : (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 divide-y divide-gray-50 max-w-2xl overflow-hidden">
-          {Object.entries(data ?? {}).map(([key, value]) => (
+          {Object.entries(data ?? {}).filter(([key]) => !HIDDEN_SETTINGS.has(key)).map(([key, value]) => (
             <SettingRow key={key} name={key} value={value} />
           ))}
         </div>
