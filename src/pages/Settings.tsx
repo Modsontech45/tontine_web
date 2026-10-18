@@ -3,19 +3,19 @@ import { useState } from 'react'
 import { api } from '../lib/api'
 
 const SETTING_LABELS: Record<string, { label: string; desc: string; unit?: string }> = {
-  commission_strategy:            { label: 'Stratégie de commission',          desc: 'Mode de calcul de la commission (ONE_STAKE, PERCENTAGE…)' },
-  commission_value:               { label: 'Valeur de commission',              desc: 'Montant ou taux de la commission selon la stratégie choisie' },
-  stake_min:                      { label: 'Mise minimale (F)',                 desc: 'Montant minimum autorisé pour une mise journalière', unit: 'F' },
-  stake_max:                      { label: 'Mise maximale (F)',                 desc: 'Montant maximum autorisé pour une mise journalière', unit: 'F' },
-  stake_step:                     { label: 'Pas de mise (F)',                   desc: 'Incrément entre les valeurs de mise disponibles', unit: 'F' },
-  cycle_default_length:           { label: 'Durée de cycle par défaut (jours)', desc: 'Nombre de jours par défaut pour un nouveau cycle', unit: 'jours' },
-  gps_alert_distance_m:           { label: 'Distance alerte GPS (m)',           desc: 'Distance en mètres déclenchant une alerte de localisation', unit: 'm' },
-  inactive_days:                  { label: 'Jours d\'inactivité (alerte)',      desc: 'Nombre de jours sans collecte avant signalement comme inactif', unit: 'jours' },
-  spot_checks_per_collector_week: { label: 'Contrôles par collecteur / semaine',desc: 'Nombre de vérifications terrain planifiées par semaine' },
-  sms_weekly_enabled:             { label: 'SMS hebdomadaire activé',           desc: 'Envoi automatique d\'un récapitulatif SMS chaque semaine' },
-  sms_unit_cost_xof:              { label: 'Coût unitaire SMS (F)',             desc: 'Coût d\'un SMS en francs CFA', unit: 'F' },
-  office_phone:                   { label: 'Téléphone du bureau',               desc: 'Numéro de contact principal de l\'agence' },
-  company_name:                   { label: 'Nom de la société',                 desc: 'Nom affiché sur les documents et notifications' },
+  commission_strategy:            { label: 'Comment la commission est prélevée', desc: 'ONE_STAKE = le collecteur garde une mise par carnet. PERCENTAGE = un pourcentage du total collecté.' },
+  commission_value:               { label: 'Montant de la commission',           desc: 'Si ONE_STAKE : montant fixe en F. Si PERCENTAGE : pourcentage (ex: 5 = 5%).' },
+  stake_min:                      { label: 'Mise journalière minimale (F)',       desc: 'Un client ne peut pas avoir une mise inférieure à ce montant.' },
+  stake_max:                      { label: 'Mise journalière maximale (F)',       desc: 'Un client ne peut pas avoir une mise supérieure à ce montant.' },
+  stake_step:                     { label: 'Multiples de mise acceptés (F)',      desc: 'La mise doit être un multiple de ce nombre. Ex : 25 → mises autorisées : 100, 125, 150, 175…' },
+  cycle_default_length:           { label: 'Durée d\'un cycle (jours)',          desc: 'Nombre de jours dans un cycle tontine. En général 31 jours (un mois).' },
+  gps_alert_distance_m:           { label: 'Alerte si le collecteur est à plus de (m)', desc: 'Une alerte est créée si le collecteur enregistre une collecte à plus de X mètres du domicile du client.' },
+  inactive_days:                  { label: 'Alerte client inactif après (jours)', desc: 'Si un client n\'a pas été visité depuis ce nombre de jours, une alerte est déclenchée.' },
+  spot_checks_per_collector_week: { label: 'Visites de contrôle par semaine',    desc: 'Nombre de fois par semaine qu\'un superviseur doit vérifier le travail de chaque collecteur sur le terrain.' },
+  sms_weekly_enabled:             { label: 'SMS hebdomadaire activé',            desc: 'Envoi automatique d\'un récapitulatif SMS chaque semaine.' },
+  sms_unit_cost_xof:              { label: 'Coût d\'un SMS (F)',                 desc: 'Prix d\'un SMS en francs CFA, utilisé pour le calcul des coûts.' },
+  office_phone:                   { label: 'Téléphone du bureau',                desc: 'Numéro de contact principal de l\'agence.' },
+  company_name:                   { label: 'Nom de la société',                  desc: 'Nom affiché sur les reçus, stickers et notifications.' },
 }
 
 const HIDDEN_SETTINGS = new Set(['sms_weekly_enabled', 'sms_unit_cost_xof'])
