@@ -3,8 +3,8 @@ import { useState } from 'react'
 import { api } from '../lib/api'
 
 const SETTING_LABELS: Record<string, { label: string; desc: string; unit?: string }> = {
-  commission_strategy:            { label: 'Comment la commission est prélevée', desc: 'ONE_STAKE = le collecteur garde une mise par carnet. PERCENTAGE = un pourcentage du total collecté.' },
-  commission_value:               { label: 'Montant de la commission',           desc: 'Si ONE_STAKE : montant fixe en F. Si PERCENTAGE : pourcentage (ex: 5 = 5%).' },
+  commission_strategy:            { label: 'Mode de commission du collecteur',   desc: 'ONE_STAKE : à la fin du cycle, le collecteur garde l\'équivalent d\'une journée de collecte par carnet (le modèle classique). PERCENTAGE : il prend un % du total collecté.' },
+  commission_value:               { label: 'Valeur de la commission',            desc: 'Nombre de mises retenues si ONE_STAKE (généralement 1). Pourcentage si PERCENTAGE (ex : 5 = 5% du total).' },
   stake_min:                      { label: 'Mise journalière minimale (F)',       desc: 'Un client ne peut pas avoir une mise inférieure à ce montant.' },
   stake_max:                      { label: 'Mise journalière maximale (F)',       desc: 'Un client ne peut pas avoir une mise supérieure à ce montant.' },
   stake_step:                     { label: 'Multiples de mise acceptés (F)',      desc: 'La mise doit être un multiple de ce nombre. Ex : 25 → mises autorisées : 100, 125, 150, 175…' },
