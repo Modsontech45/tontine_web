@@ -17,7 +17,7 @@ interface DashboardData {
     openCycles: number; closedCycles: number; paidCycles: number; cancelledCycles: number
     pendingAlerts: number; pendingVoids: number
     todayVersed: number; todayGap: number
-    remainingToday: number
+    expectedToday: number; remainingToday: number
   }
   dailyCollections: Array<{ date: string; amount: number; count: number }>
   monthlyRevenue: Array<{ month: string; amount: number; count: number }>
@@ -113,12 +113,10 @@ export function DashboardPage() {
 
       {/* ── 5 KPI Cards ──────────────────────────────────────── */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-5">
-        <KpiCard
-          label="Collecté aujourd'hui"
-          value={`${fmtShort(kpis.todayAmount)} F`}
-          sub={`${kpis.todayCount} opérations`}
-          borderColor="#6366f1"
-          dotColor="bg-indigo-500"
+        <TodayCollectionCard
+          collected={kpis.todayAmount}
+          expected={kpis.expectedToday}
+          count={kpis.todayCount}
         />
         <KpiCard
           label="Chez les collecteurs"
@@ -310,6 +308,34 @@ export function DashboardPage() {
         />
         <SmallKpi label="Alertes ouvertes" value={`${kpis.pendingAlerts}`} color={kpis.pendingAlerts > 5 ? '#ef4444' : '#f59e0b'} />
         <SmallKpi label="Annulations en attente" value={`${kpis.pendingVoids}`} color="#f97316" />
+      </div>
+    </div>
+  )
+}
+
+/* ── Today Collection Card ────────────────────────────────── */
+function TodayCollectionCard({ collected, expected, count }: {
+  collected: number; expected: number; count: number
+}) {
+  const pct = expected > 0 ? Math.min(100, Math.round((collected / expected) * 100)) : 0
+  return (
+    <div className="bg-white rounded-2xl shadow-sm overflow-hidden" style={{ borderTop: '4px solid #6366f1' }}>
+      <div className="p-5">
+        <p className="text-sm font-medium text-gray-500 mb-3">Collecté aujourd'hui</p>
+        <p className="text-3xl font-black text-gray-900 tracking-tight">{fmtShort(collected)} F</p>
+        <p className="text-xs text-gray-400 mt-1">{count} opérations · attendu {fmtShort(expected)} F</p>
+        <div className="mt-3">
+          <div className="flex justify-between text-xs text-gray-400 mb-1">
+            <span>{pct}% collecté</span>
+            <span>{fmtShort(Math.max(0, expected - collected))} F restants</span>
+          </div>
+          <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+            <div
+              className="h-full rounded-full transition-all duration-500"
+              style={{ width: `${pct}%`, background: pct >= 100 ? '#10b981' : '#6366f1' }}
+            />
+          </div>
+        </div>
       </div>
     </div>
   )
