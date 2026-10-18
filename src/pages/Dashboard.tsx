@@ -17,7 +17,7 @@ interface DashboardData {
     openCycles: number; closedCycles: number; paidCycles: number; cancelledCycles: number
     pendingAlerts: number; pendingVoids: number
     todayVersed: number; todayGap: number
-    expectedToday: number; remainingToday: number
+    remainingToday: number
   }
   dailyCollections: Array<{ date: string; amount: number; count: number }>
   monthlyRevenue: Array<{ month: string; amount: number; count: number }>
@@ -121,9 +121,9 @@ export function DashboardPage() {
           dotColor="bg-indigo-500"
         />
         <KpiCard
-          label="À encaisser aujourd'hui"
+          label="Chez les collecteurs"
           value={`${fmtShort(kpis.remainingToday)} F`}
-          sub={kpis.remainingToday === 0 ? 'Tout collecté ✓' : `sur ${fmtShort(kpis.expectedToday)} F attendus`}
+          sub={kpis.remainingToday === 0 ? 'Tout versé à la caisse ✓' : 'non encore versé à la caisse'}
           borderColor={kpis.remainingToday > 0 ? '#f97316' : '#10b981'}
           dotColor="bg-orange-500"
           highlight={kpis.remainingToday > 0}
