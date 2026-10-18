@@ -1,6 +1,8 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import { logout, getStoredUser } from '../lib/auth'
 import { ROLE_LABELS } from '../lib/format'
+import { api } from '../lib/api'
 
 type NavItem = { to: string; label: string; exact?: boolean; icon: React.FC<{active?: boolean}>; roles?: string[] }
 
@@ -37,6 +39,19 @@ export function DashboardLayout() {
     ? `${user.first_name[0]}${user.last_name?.[0] ?? ''}`.toUpperCase()
     : 'AD'
 
+  const firstName = user?.first_name ?? 'Admin'
+  const fullName = user?.first_name ? `${user.first_name} ${user.last_name ?? ''}` : 'Administrateur'
+  const roleLabel = ROLE_LABELS[user?.role ?? ''] ?? user?.role ?? ''
+
+  const today = new Date().toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+
+  const { data: notifCount } = useQuery({
+    queryKey: ['notifications-count'],
+    queryFn: () => api.get('/notifications/count').then(r => r.data),
+    refetchInterval: 60_000,
+  })
+  const total: number = notifCount?.total ?? 0
+
   return (
     <div className="flex h-screen" style={{ background: '#f1f5f9' }}>
       {/* ── Sidebar ──────────────────────────────────────────── */}
@@ -59,27 +74,11 @@ export function DashboardLayout() {
           <NavSection label="GÉNÉRAL" items={GENERAL.filter(i => !i.roles || i.roles.includes(role))} />
         </nav>
 
-        {/* User card */}
+        {/* Logout only */}
         <div className="p-3 border-t border-white/10">
-          <div className="rounded-xl p-3" style={{ background: '#1e293b' }}>
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
-                   style={{ background: 'linear-gradient(135deg,#6366f1,#8b5cf6)' }}>
-                {initials}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-white text-sm font-medium truncate">
-                  {user?.first_name ? `${user.first_name} ${user.last_name ?? ''}` : 'Administrateur'}
-                </p>
-                <p className="text-xs truncate" style={{ color: '#94a3b8' }}>
-                  {ROLE_LABELS[user?.role ?? ''] ?? user?.role ?? ''}
-                </p>
-              </div>
-            </div>
-          </div>
           <button
             onClick={handleLogout}
-            className="mt-2 w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors"
+            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors"
             style={{ color: '#94a3b8' }}
             onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#f87171'; (e.currentTarget as HTMLElement).style.background = 'rgba(239,68,68,0.1)' }}
             onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = '#94a3b8'; (e.currentTarget as HTMLElement).style.background = 'transparent' }}
@@ -91,11 +90,53 @@ export function DashboardLayout() {
       </aside>
 
       {/* ── Main ─────────────────────────────────────────────── */}
-      <main className="flex-1 overflow-auto">
-        <div className="p-7">
-          <Outlet />
-        </div>
-      </main>
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* ── Sticky Top Bar ─────────────────────────────────── */}
+        <header className="flex-shrink-0 flex items-center justify-between px-7 py-4 bg-white border-b border-gray-100 shadow-sm" style={{ position: 'sticky', top: 0, zIndex: 20 }}>
+          <div>
+            <h1 className="text-xl font-bold text-gray-900">
+              Bonjour, {firstName} <span>👋</span>
+            </h1>
+            <p className="text-xs text-gray-400 mt-0.5 capitalize">{today}</p>
+          </div>
+          <div className="flex items-center gap-3">
+            {/* Notification bell */}
+            <button
+              onClick={() => navigate('/activity')}
+              className="relative w-9 h-9 rounded-full bg-gray-50 border border-gray-200 flex items-center justify-center hover:bg-gray-100 transition-colors"
+              title="Voir les notifications"
+            >
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+              </svg>
+              {total > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center leading-none">
+                  {total > 99 ? '99+' : total}
+                </span>
+              )}
+            </button>
+
+            {/* User profile */}
+            <div className="flex items-center gap-2.5 pl-3 border-l border-gray-100">
+              <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
+                   style={{ background: 'linear-gradient(135deg,#6366f1,#8b5cf6)' }}>
+                {initials}
+              </div>
+              <div className="hidden sm:block">
+                <p className="text-sm font-semibold text-gray-800 leading-tight">{fullName}</p>
+                <p className="text-xs text-gray-400">{roleLabel}</p>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <main className="flex-1 overflow-auto">
+          <div className="p-7">
+            <Outlet />
+          </div>
+        </main>
+      </div>
     </div>
   )
 }
