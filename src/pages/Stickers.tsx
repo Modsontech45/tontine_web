@@ -1,9 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { api } from '../lib/api'
 import { STATUS_LABELS } from '../lib/format'
 
 export function StickersPage() {
+  const navigate = useNavigate()
   const qc = useQueryClient()
   const [fromNum, setFromNum] = useState('')
   const [toNum, setToNum] = useState('')
@@ -122,19 +124,40 @@ export function StickersPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {stickers?.data?.map((s: { carnetNumber: string; status: string; assignedCollectorId: string }) => (
-                  <tr key={s.carnetNumber} className="hover:bg-gray-50">
-                    <td className="px-4 py-2 font-mono text-xs">{s.carnetNumber}</td>
-                    <td className="px-4 py-2">
-                      <span className={`px-2 py-0.5 rounded text-xs ${s.status === 'USED' ? 'bg-gray-100 text-gray-600' : s.status === 'ASSIGNED' ? 'bg-yellow-50 text-yellow-700' : 'bg-green-50 text-green-700'}`}>
-                        {STATUS_LABELS[s.status] ?? s.status}
-                      </span>
-                    </td>
-                    <td className="px-4 py-2 text-xs text-gray-700">
-                      {s.assignedCollectorId ? (collectorMap[s.assignedCollectorId] ?? s.assignedCollectorId.slice(0, 8) + '...') : '—'}
-                    </td>
-                  </tr>
-                ))}
+                {stickers?.data?.map((s: { carnetNumber: string; status: string; assignedCollectorId: string; client?: { id: string; firstName: string; lastName: string } }) => {
+                  const clientId = s.client?.id
+                  const clickable = !!clientId
+                  return (
+                    <tr
+                      key={s.carnetNumber}
+                      className={`hover:bg-gray-50 ${clickable ? 'cursor-pointer' : ''}`}
+                      onClick={() => clientId && navigate(`/clients/${clientId}`)}
+                      title={clickable ? `Voir le carnet de ${s.client?.firstName} ${s.client?.lastName}` : undefined}
+                    >
+                      <td className="px-4 py-2 font-mono text-xs">
+                        <div className="flex items-center gap-1.5">
+                          {s.carnetNumber}
+                          {clickable && (
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-300 flex-shrink-0">
+                              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
+                            </svg>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-4 py-2">
+                        <span className={`px-2 py-0.5 rounded text-xs ${s.status === 'USED' ? 'bg-gray-100 text-gray-600' : s.status === 'ASSIGNED' ? 'bg-yellow-50 text-yellow-700' : 'bg-green-50 text-green-700'}`}>
+                          {STATUS_LABELS[s.status] ?? s.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2 text-xs text-gray-700">
+                        {s.client
+                          ? <span className="font-medium">{s.client.firstName} {s.client.lastName}</span>
+                          : s.assignedCollectorId ? (collectorMap[s.assignedCollectorId] ?? s.assignedCollectorId.slice(0, 8) + '...') : '—'
+                        }
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
