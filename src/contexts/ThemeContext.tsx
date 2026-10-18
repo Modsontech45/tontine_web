@@ -9,7 +9,7 @@ const ThemeContext = createContext<{ theme: Theme; toggle: () => void }>({
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<Theme>(() => {
-    try { return (localStorage.getItem('theme') as Theme) ?? 'light' } catch { return 'light' }
+    try { return (localStorage.getItem('theme') as Theme) ?? 'dark' } catch { return 'dark' }
   })
 
   useEffect(() => {
