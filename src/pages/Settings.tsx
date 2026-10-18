@@ -4,7 +4,7 @@ import { api } from '../lib/api'
 
 const SETTING_LABELS: Record<string, { label: string; desc: string; unit?: string }> = {
   commission_strategy:            { label: 'Mode de commission du collecteur',   desc: 'ONE_STAKE : à la fin du cycle, le collecteur garde l\'équivalent d\'une journée de collecte par carnet (le modèle classique). PERCENTAGE : il prend un % du total collecté.' },
-  commission_value:               { label: 'Valeur de la commission',            desc: 'Nombre de mises retenues si ONE_STAKE (généralement 1). Pourcentage si PERCENTAGE (ex : 5 = 5% du total).' },
+  commission_value:               { label: 'Valeur de la commission',            desc: 'Avec ONE_STAKE et la valeur 1 : sur un cycle de 31 jours à 500 F/jour, le client reçoit 30 × 500 F = 15 000 F. Le collecteur garde 1 jour = 500 F.' },
   stake_min:                      { label: 'Mise journalière minimale (F)',       desc: 'Un client ne peut pas avoir une mise inférieure à ce montant.' },
   stake_max:                      { label: 'Mise journalière maximale (F)',       desc: 'Un client ne peut pas avoir une mise supérieure à ce montant.' },
   stake_step:                     { label: 'Multiples de mise acceptés (F)',      desc: 'La mise doit être un multiple de ce nombre. Ex : 25 → mises autorisées : 100, 125, 150, 175…' },
