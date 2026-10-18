@@ -7,6 +7,7 @@ import {
 } from 'recharts'
 import { api } from '../lib/api'
 import { formatAmount } from '../lib/format'
+import { useTheme } from '../contexts/ThemeContext'
 
 
 interface DashboardData {
@@ -42,8 +43,8 @@ function fmtShort(v: number) {
 function CustomTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null
   return (
-    <div className="bg-white border border-gray-100 rounded-xl shadow-xl p-3 text-sm">
-      <p className="font-semibold text-gray-700 mb-2">{label}</p>
+    <div className="bg-white border border-gray-100 rounded-xl shadow-xl p-3 text-sm" style={{ background: 'var(--c-card)', borderColor: 'var(--c-border)', color: 'var(--c-text-b)' }}>
+      <p className="font-semibold mb-2" style={{ color: 'var(--c-text-h)' }}>{label}</p>
       {payload.map((p: any) => (
         <p key={p.dataKey} className="flex items-center gap-2" style={{ color: p.color }}>
           <span className="w-2 h-2 rounded-full inline-block" style={{ background: p.color }} />
@@ -55,6 +56,8 @@ function CustomTooltip({ active, payload, label }: any) {
 }
 
 export function DashboardPage() {
+  const { theme } = useTheme()
+  const isDark = theme === 'dark'
   const { data, isLoading, error } = useQuery<DashboardData>({
     queryKey: ['dashboard-admin'],
     queryFn: () => api.get('/dashboard/admin').then(r => r.data),
@@ -127,13 +130,13 @@ export function DashboardPage() {
       {/* ── Charts row ───────────────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* Area chart — 14 days */}
-        <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+        <div className="lg:col-span-2 rounded-2xl shadow-sm p-5" style={{ background: 'var(--c-card)', border: '1px solid var(--c-card-border)' }}>
           <div className="flex items-center justify-between mb-5">
             <div>
-              <h3 className="font-bold text-gray-900">Collectes — 14 derniers jours</h3>
-              <p className="text-xs text-gray-400 mt-0.5">Montant encaissé par date</p>
+              <h3 className="font-bold" style={{ color: 'var(--c-text-h)' }}>Collectes — 14 derniers jours</h3>
+              <p className="text-xs mt-0.5" style={{ color: 'var(--c-text-m)' }}>Montant encaissé par date</p>
             </div>
-            <div className="flex items-center gap-4 text-xs text-gray-500">
+            <div className="flex items-center gap-4 text-xs" style={{ color: 'var(--c-text-s)' }}>
               <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-slate-400 inline-block"/>#Collecté</span>
             </div>
           </div>
@@ -141,13 +144,13 @@ export function DashboardPage() {
             <AreaChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
               <defs>
                 <linearGradient id="gCollected" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#94a3b8" stopOpacity={0.6} />
-                  <stop offset="100%" stopColor="#94a3b8" stopOpacity={0.05} />
+                  <stop offset="0%" stopColor="#94a3b8" stopOpacity={1} />
+                  <stop offset="100%" stopColor="#94a3b8" stopOpacity={1} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-              <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-              <YAxis tickFormatter={v => fmtShort(v)} tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} width={52} />
+              <CartesianGrid strokeDasharray="3 3" stroke={isDark ? 'rgba(255,255,255,0.06)' : '#f1f5f9'} />
+              <XAxis dataKey="date" tick={{ fontSize: 11, fill: isDark ? '#64748b' : '#94a3b8' }} axisLine={false} tickLine={false} />
+              <YAxis tickFormatter={v => fmtShort(v)} tick={{ fontSize: 11, fill: isDark ? '#64748b' : '#94a3b8' }} axisLine={false} tickLine={false} width={52} />
               <Tooltip content={<CustomTooltip />} />
               <Area type="monotone" dataKey="Collecté" stroke="#94a3b8" fill="url(#gCollected)" strokeWidth={2} dot={false} activeDot={{ r: 4, fill: '#64748b' }} />
             </AreaChart>
@@ -155,10 +158,10 @@ export function DashboardPage() {
         </div>
 
         {/* Cycle donut */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+        <div className="rounded-2xl shadow-sm p-5" style={{ background: 'var(--c-card)', border: '1px solid var(--c-card-border)' }}>
           <div className="mb-4">
-            <h3 className="font-bold text-gray-900">Statut des cycles</h3>
-            <p className="text-xs text-gray-400 mt-0.5">Répartition globale</p>
+            <h3 className="font-bold" style={{ color: 'var(--c-text-h)' }}>Statut des cycles</h3>
+            <p className="text-xs mt-0.5" style={{ color: 'var(--c-text-m)' }}>Répartition globale</p>
           </div>
           <div className="flex items-center justify-center">
             <ResponsiveContainer width="100%" height={170}>
@@ -183,10 +186,10 @@ export function DashboardPage() {
           </div>
           <div className="grid grid-cols-2 gap-2 mt-2">
             {data.cycleBreakdown.map(e => (
-              <div key={e.status} className="flex items-center gap-2 text-xs text-gray-600">
+              <div key={e.status} className="flex items-center gap-2 text-xs" style={{ color: 'var(--c-text-s)' }}>
                 <span className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ background: CYCLE_COLORS[e.status] ?? '#94a3b8' }} />
                 <span className="truncate">{e.label}</span>
-                <strong className="ml-auto">{e.count}</strong>
+                <strong className="ml-auto" style={{ color: 'var(--c-text-h)' }}>{e.count}</strong>
               </div>
             ))}
           </div>
@@ -196,59 +199,59 @@ export function DashboardPage() {
       {/* ── Bottom row ───────────────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* Top collectors table */}
-        <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+        <div className="lg:col-span-2 rounded-2xl shadow-sm p-5" style={{ background: 'var(--c-card)', border: '1px solid var(--c-card-border)' }}>
           <div className="flex items-center justify-between mb-5">
-            <h3 className="font-bold text-gray-900">Top Collecteurs — 30 jours</h3>
+            <h3 className="font-bold" style={{ color: 'var(--c-text-h)' }}>Top Collecteurs — 30 jours</h3>
             <span className="text-xs text-indigo-600 font-medium cursor-pointer hover:underline">Voir tout</span>
           </div>
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-gray-50">
-                <th className="text-left pb-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Nom</th>
-                <th className="text-left pb-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Montant</th>
-                <th className="text-left pb-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Opérations</th>
-                <th className="text-left pb-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Clients</th>
+              <tr style={{ borderBottom: '1px solid var(--c-border)' }}>
+                <th className="text-left pb-3 text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--c-text-m)' }}>Nom</th>
+                <th className="text-left pb-3 text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--c-text-m)' }}>Montant</th>
+                <th className="text-left pb-3 text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--c-text-m)' }}>Opérations</th>
+                <th className="text-left pb-3 text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--c-text-m)' }}>Clients</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-50">
+            <tbody>
               {data.topCollectors.map((c, i) => (
-                <tr key={i} className="group hover:bg-gray-50/50 transition-colors">
+                <tr key={i} style={{ borderBottom: '1px solid var(--c-border)' }}>
                   <td className="py-3 pr-4">
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
                            style={{ background: ZONE_COLORS[i % ZONE_COLORS.length] }}>
                         {c.name.split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase()}
                       </div>
-                      <span className="font-medium text-gray-800">{c.name}</span>
+                      <span className="font-medium" style={{ color: 'var(--c-text-b)' }}>{c.name}</span>
                     </div>
                   </td>
                   <td className="py-3 pr-4">
-                    <span className="font-bold text-gray-900">{formatAmount(c.amount)}</span>
+                    <span className="font-bold" style={{ color: 'var(--c-text-h)' }}>{formatAmount(c.amount)}</span>
                   </td>
-                  <td className="py-3 pr-4 text-gray-500">{c.count}</td>
+                  <td className="py-3 pr-4" style={{ color: 'var(--c-text-s)' }}>{c.count}</td>
                   <td className="py-3">
                     <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700">{c.clients}</span>
                   </td>
                 </tr>
               ))}
               {data.topCollectors.length === 0 && (
-                <tr><td colSpan={4} className="py-8 text-center text-gray-400 text-sm">Aucune donnée ce mois</td></tr>
+                <tr><td colSpan={4} className="py-8 text-center text-sm" style={{ color: 'var(--c-text-m)' }}>Aucune donnée ce mois</td></tr>
               )}
             </tbody>
           </table>
         </div>
 
         {/* Zone bar chart */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+        <div className="rounded-2xl shadow-sm p-5" style={{ background: 'var(--c-card)', border: '1px solid var(--c-card-border)' }}>
           <div className="mb-4">
-            <h3 className="font-bold text-gray-900">Collectes par zone</h3>
-            <p className="text-xs text-gray-400 mt-0.5">7 derniers jours</p>
+            <h3 className="font-bold" style={{ color: 'var(--c-text-h)' }}>Collectes par zone</h3>
+            <p className="text-xs mt-0.5" style={{ color: 'var(--c-text-m)' }}>7 derniers jours</p>
           </div>
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={data.collectionsByZone} layout="vertical" margin={{ top: 0, right: 10, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
-              <XAxis type="number" tickFormatter={v => fmtShort(v)} tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-              <YAxis type="category" dataKey="zone" width={70} tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke={isDark ? 'rgba(255,255,255,0.06)' : '#f1f5f9'} horizontal={false} />
+              <XAxis type="number" tickFormatter={v => fmtShort(v)} tick={{ fontSize: 10, fill: isDark ? '#64748b' : '#94a3b8' }} axisLine={false} tickLine={false} />
+              <YAxis type="category" dataKey="zone" width={70} tick={{ fontSize: 10, fill: isDark ? '#94a3b8' : '#64748b' }} axisLine={false} tickLine={false} />
               <Tooltip content={<CustomTooltip />} />
               <Bar dataKey="amount" name="Montant" radius={[0, 6, 6, 0]} maxBarSize={20}>
                 {data.collectionsByZone.map((_, i) => (
@@ -259,11 +262,11 @@ export function DashboardPage() {
           </ResponsiveContainer>
 
           {/* Monthly bar */}
-          <div className="mt-4 pt-4 border-t border-gray-50">
-            <p className="text-xs font-semibold text-gray-500 mb-3">Revenus mensuels</p>
+          <div className="mt-4 pt-4" style={{ borderTop: '1px solid var(--c-border)' }}>
+            <p className="text-xs font-semibold mb-3" style={{ color: 'var(--c-text-s)' }}>Revenus mensuels</p>
             <ResponsiveContainer width="100%" height={100}>
               <BarChart data={data.monthlyRevenue} margin={{ top: 0, right: 0, left: -30, bottom: 0 }}>
-                <XAxis dataKey="month" tick={{ fontSize: 9, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+                <XAxis dataKey="month" tick={{ fontSize: 9, fill: isDark ? '#64748b' : '#94a3b8' }} axisLine={false} tickLine={false} />
                 <Tooltip content={<CustomTooltip />} />
                 <Bar dataKey="amount" name="Montant" fill="#D4A017" radius={[4, 4, 0, 0]} maxBarSize={24} />
               </BarChart>
@@ -294,17 +297,17 @@ function TodayCollectionCard({ collected, expected, count }: {
 }) {
   const pct = expected > 0 ? Math.min(100, Math.round((collected / expected) * 100)) : 0
   return (
-    <div className="bg-white rounded-2xl shadow-sm overflow-hidden" style={{ borderTop: '4px solid #6366f1' }}>
+    <div className="rounded-2xl shadow-sm overflow-hidden" style={{ background: 'var(--c-card)', border: '1px solid var(--c-card-border)', borderTop: '4px solid #6366f1' }}>
       <div className="p-5">
-        <p className="text-sm font-medium text-gray-500 mb-3">Collecté aujourd'hui</p>
-        <p className="text-3xl font-black text-gray-900 tracking-tight">{fmtShort(collected)} F</p>
-        <p className="text-xs text-gray-400 mt-1">{count} opérations · attendu {fmtShort(expected)} F</p>
+        <p className="text-sm font-medium mb-3" style={{ color: 'var(--c-text-s)' }}>Collecté aujourd'hui</p>
+        <p className="text-3xl font-black tracking-tight" style={{ color: 'var(--c-text-h)' }}>{fmtShort(collected)} F</p>
+        <p className="text-xs mt-1" style={{ color: 'var(--c-text-m)' }}>{count} opérations · attendu {fmtShort(expected)} F</p>
         <div className="mt-3">
-          <div className="flex justify-between text-xs text-gray-400 mb-1">
+          <div className="flex justify-between text-xs mb-1" style={{ color: 'var(--c-text-m)' }}>
             <span>{pct}% collecté</span>
             <span>{fmtShort(Math.max(0, expected - collected))} F restants</span>
           </div>
-          <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+          <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--c-border)' }}>
             <div
               className="h-full rounded-full transition-all duration-500"
               style={{ width: `${pct}%`, background: pct >= 100 ? '#10b981' : '#6366f1' }}
@@ -322,15 +325,15 @@ function KpiCard({ label, value, sub, borderColor, highlight }: {
   borderColor: string; dotColor: string; highlight?: boolean
 }) {
   return (
-    <div className={`rounded-2xl shadow-sm overflow-hidden relative ${highlight ? 'ring-2 ring-orange-300' : 'bg-white'}`}
-         style={{ borderTop: `4px solid ${borderColor}`, background: highlight ? '#fff7ed' : 'white' }}>
+    <div className={`rounded-2xl shadow-sm overflow-hidden relative ${highlight ? 'ring-2 ring-orange-300' : ''}`}
+         style={{ background: highlight ? 'rgba(249,115,22,0.08)' : 'var(--c-card)', border: `1px solid ${highlight ? 'rgba(249,115,22,0.3)' : 'var(--c-card-border)'}`, borderTop: `4px solid ${borderColor}` }}>
       <div className="p-5">
         <div className="flex items-start justify-between mb-3">
-          <p className="text-sm font-medium text-gray-500 leading-tight">{label}</p>
+          <p className="text-sm font-medium leading-tight" style={{ color: 'var(--c-text-s)' }}>{label}</p>
           {highlight && <span className="text-xs font-bold text-orange-500 bg-orange-100 px-1.5 py-0.5 rounded-full">En attente</span>}
         </div>
-        <p className="text-3xl font-black text-gray-900 tracking-tight">{value}</p>
-        {sub && <p className="text-xs text-gray-400 mt-1.5">{sub}</p>}
+        <p className="text-3xl font-black tracking-tight" style={{ color: 'var(--c-text-h)' }}>{value}</p>
+        {sub && <p className="text-xs mt-1.5" style={{ color: 'var(--c-text-m)' }}>{sub}</p>}
       </div>
     </div>
   )
@@ -339,10 +342,10 @@ function KpiCard({ label, value, sub, borderColor, highlight }: {
 /* ── Small KPI ────────────────────────────────────────────── */
 function SmallKpi({ label, value, sub, color }: { label: string; value: string; sub?: string; color: string }) {
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-      <p className="text-xs text-gray-400 font-medium mb-1">{label}</p>
+    <div className="rounded-xl shadow-sm p-4" style={{ background: 'var(--c-card)', border: '1px solid var(--c-card-border)' }}>
+      <p className="text-xs font-medium mb-1" style={{ color: 'var(--c-text-m)' }}>{label}</p>
       <p className="text-xl font-bold" style={{ color }}>{value}</p>
-      {sub && <p className="text-xs text-gray-400 mt-0.5">{sub}</p>}
+      {sub && <p className="text-xs mt-0.5" style={{ color: 'var(--c-text-m)' }}>{sub}</p>}
     </div>
   )
 }

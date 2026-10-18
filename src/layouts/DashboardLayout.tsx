@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { logout, getStoredUser } from '../lib/auth'
 import { ROLE_LABELS } from '../lib/format'
 import { api } from '../lib/api'
+import { useTheme } from '../contexts/ThemeContext'
 
 type NavItem = { to: string; label: string; exact?: boolean; icon: React.FC<{active?: boolean}>; roles?: string[] }
 
@@ -26,6 +27,7 @@ const GENERAL: NavItem[] = [
 
 export function DashboardLayout() {
   const navigate = useNavigate()
+  const { theme, toggle } = useTheme()
   const user = getStoredUser()
 
   const handleLogout = () => {
@@ -53,89 +55,116 @@ export function DashboardLayout() {
   const total: number = notifCount?.total ?? 0
 
   return (
-    <div className="flex h-screen" style={{ background: '#f1f5f9' }}>
-      {/* ── Sidebar ──────────────────────────────────────────── */}
-      <aside className="w-64 flex-shrink-0 flex flex-col" style={{ background: '#0f172a' }}>
-        {/* Logo */}
-        <div className="flex items-center gap-3 px-5 py-5 border-b border-white/10">
-          <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-               style={{ background: 'linear-gradient(135deg,#D4A017,#f59e0b)' }}>
-            <span className="text-white font-black text-lg leading-none">T</span>
-          </div>
-          <div>
-            <p className="text-white font-bold text-sm leading-tight">Tontine Prospera</p>
-            <p className="text-xs" style={{ color: '#94a3b8' }}>Administration</p>
-          </div>
-        </div>
-
-        {/* Nav */}
-        <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-6">
-          <NavSection label="MENU" items={MENU.filter(i => !i.roles || i.roles.includes(role))} />
-          <NavSection label="GÉNÉRAL" items={GENERAL.filter(i => !i.roles || i.roles.includes(role))} />
-        </nav>
-
-        {/* Logout only */}
-        <div className="p-3 border-t border-white/10">
-          <button
-            onClick={handleLogout}
-            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors"
-            style={{ color: '#94a3b8' }}
-            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#f87171'; (e.currentTarget as HTMLElement).style.background = 'rgba(239,68,68,0.1)' }}
-            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = '#94a3b8'; (e.currentTarget as HTMLElement).style.background = 'transparent' }}
-          >
-            <IconLogout />
-            Déconnexion
-          </button>
-        </div>
-      </aside>
-
-      {/* ── Main ─────────────────────────────────────────────── */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* ── Sticky Top Bar ─────────────────────────────────── */}
-        <header className="flex-shrink-0 flex items-center justify-between px-7 py-4 bg-white border-b border-gray-100 shadow-sm" style={{ position: 'sticky', top: 0, zIndex: 20 }}>
-          <div>
-            <h1 className="text-xl font-bold text-gray-900">
-              Bonjour, {firstName} <span>👋</span>
-            </h1>
-            <p className="text-xs text-gray-400 mt-0.5 capitalize">{today}</p>
-          </div>
-          <div className="flex items-center gap-3">
-            {/* Notification bell */}
-            <button
-              onClick={() => navigate('/activity')}
-              className="relative w-9 h-9 rounded-full bg-gray-50 border border-gray-200 flex items-center justify-center hover:bg-gray-100 transition-colors"
-              title="Voir les notifications"
-            >
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-                <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-              </svg>
-              {total > 0 && (
-                <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center leading-none">
-                  {total > 99 ? '99+' : total}
-                </span>
-              )}
-            </button>
-
-            {/* User profile */}
-            <div className="flex items-center gap-2.5 pl-3 border-l border-gray-100">
-              <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
-                   style={{ background: 'linear-gradient(135deg,#6366f1,#8b5cf6)' }}>
-                {initials}
-              </div>
-              <div className="hidden sm:block">
-                <p className="text-sm font-semibold text-gray-800 leading-tight">{fullName}</p>
-                <p className="text-xs text-gray-400">{roleLabel}</p>
-              </div>
+    <div className={theme === 'dark' ? 'dark' : ''} style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
+      <div className="flex h-screen" style={{ background: 'var(--c-app)' }}>
+        {/* ── Sidebar ──────────────────────────────────────────── */}
+        <aside className="w-64 flex-shrink-0 flex flex-col" style={{ background: 'var(--c-sidebar)' }}>
+          {/* Logo */}
+          <div className="flex items-center gap-3 px-5 py-5 border-b border-white/10">
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+                 style={{ background: 'linear-gradient(135deg,#D4A017,#f59e0b)' }}>
+              <span className="text-white font-black text-lg leading-none">T</span>
+            </div>
+            <div>
+              <p className="text-white font-bold text-sm leading-tight">Tontine Prospera</p>
+              <p className="text-xs" style={{ color: '#94a3b8' }}>Administration</p>
             </div>
           </div>
-        </header>
 
-        <main className="flex-1 overflow-auto">
-          <div className="p-7">
-            <Outlet />
+          {/* Nav */}
+          <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-6">
+            <NavSection label="MENU" items={MENU.filter(i => !i.roles || i.roles.includes(role))} />
+            <NavSection label="GÉNÉRAL" items={GENERAL.filter(i => !i.roles || i.roles.includes(role))} />
+          </nav>
+
+          {/* Logout only */}
+          <div className="p-3 border-t border-white/10">
+            <button
+              onClick={handleLogout}
+              className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors"
+              style={{ color: '#94a3b8' }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#f87171'; (e.currentTarget as HTMLElement).style.background = 'rgba(239,68,68,0.1)' }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = '#94a3b8'; (e.currentTarget as HTMLElement).style.background = 'transparent' }}
+            >
+              <IconLogout />
+              Déconnexion
+            </button>
           </div>
-        </main>
+        </aside>
+
+        {/* ── Main ─────────────────────────────────────────────── */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* ── Sticky Top Bar ─────────────────────────────────── */}
+          <header
+            className="flex-shrink-0 flex items-center justify-between px-7 py-4 shadow-sm"
+            style={{ position: 'sticky', top: 0, zIndex: 20, background: 'var(--c-topbar)', borderBottom: '1px solid var(--c-topbar-border)' }}
+          >
+            <div>
+              <h1 className="text-xl font-bold" style={{ color: 'var(--c-text-h)' }}>
+                Bonjour, {firstName} <span>👋</span>
+              </h1>
+              <p className="text-xs mt-0.5 capitalize" style={{ color: 'var(--c-text-m)' }}>{today}</p>
+            </div>
+            <div className="flex items-center gap-2">
+              {/* Theme toggle */}
+              <button
+                onClick={toggle}
+                className="w-9 h-9 rounded-full flex items-center justify-center transition-colors"
+                style={{ background: 'var(--c-card)', border: '1px solid var(--c-border)', color: 'var(--c-text-s)' }}
+                title={theme === 'dark' ? 'Mode clair' : 'Mode sombre'}
+              >
+                {theme === 'dark' ? (
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
+                    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+                    <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
+                    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+                  </svg>
+                ) : (
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                  </svg>
+                )}
+              </button>
+
+              {/* Notification bell */}
+              <button
+                onClick={() => navigate('/activity')}
+                className="relative w-9 h-9 rounded-full flex items-center justify-center transition-colors"
+                style={{ background: 'var(--c-card)', border: '1px solid var(--c-border)', color: 'var(--c-text-s)' }}
+                title="Voir les notifications"
+              >
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                  <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                </svg>
+                {total > 0 && (
+                  <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center leading-none">
+                    {total > 99 ? '99+' : total}
+                  </span>
+                )}
+              </button>
+
+              {/* User profile */}
+              <div className="flex items-center gap-2.5 pl-3" style={{ borderLeft: '1px solid var(--c-border)' }}>
+                <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
+                     style={{ background: 'linear-gradient(135deg,#6366f1,#8b5cf6)' }}>
+                  {initials}
+                </div>
+                <div className="hidden sm:block">
+                  <p className="text-sm font-semibold leading-tight" style={{ color: 'var(--c-text-h)' }}>{fullName}</p>
+                  <p className="text-xs" style={{ color: 'var(--c-text-m)' }}>{roleLabel}</p>
+                </div>
+              </div>
+            </div>
+          </header>
+
+          <main className="flex-1 overflow-auto">
+            <div className="p-7">
+              <Outlet />
+            </div>
+          </main>
+        </div>
       </div>
     </div>
   )
