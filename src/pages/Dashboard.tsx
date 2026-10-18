@@ -141,8 +141,8 @@ export function DashboardPage() {
             <AreaChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
               <defs>
                 <linearGradient id="gCollected" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#94a3b8" stopOpacity={0.35} />
-                  <stop offset="100%" stopColor="#94a3b8" stopOpacity={0} />
+                  <stop offset="0%" stopColor="#94a3b8" stopOpacity={0.6} />
+                  <stop offset="100%" stopColor="#94a3b8" stopOpacity={0.05} />
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
