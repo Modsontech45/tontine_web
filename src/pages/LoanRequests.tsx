@@ -1,7 +1,34 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../lib/api'
 import { formatAmount, formatDateTime } from '../lib/format'
+
+function useElapsed(dateStr: string) {
+  const [elapsed, setElapsed] = useState(() => Date.now() - new Date(dateStr).getTime())
+  useEffect(() => {
+    const id = setInterval(() => setElapsed(Date.now() - new Date(dateStr).getTime()), 1000)
+    return () => clearInterval(id)
+  }, [dateStr])
+  const s = Math.floor(elapsed / 1000)
+  const d = Math.floor(s / 86400)
+  const h = Math.floor((s % 86400) / 3600)
+  const m = Math.floor((s % 3600) / 60)
+  const sec = s % 60
+  return { d, h, m, sec }
+}
+
+function ElapsedTimer({ dateStr, status }: { dateStr: string; status: LoanStatus }) {
+  const { d, h, m, sec } = useElapsed(dateStr)
+  const urgent = status === 'PENDING' && (d > 0 || h >= 2)
+  return (
+    <div className={`mt-1.5 flex items-center gap-1 text-xs font-mono tabular-nums ${urgent ? 'text-red-500' : 'text-gray-400'}`}>
+      {d > 0 && <span>{d}<span className="font-sans opacity-60">j</span></span>}
+      <span>{String(h).padStart(2,'0')}<span className="font-sans opacity-60">h</span></span>
+      <span>{String(m).padStart(2,'0')}<span className="font-sans opacity-60">m</span></span>
+      <span>{String(sec).padStart(2,'0')}<span className="font-sans opacity-60">s</span></span>
+    </div>
+  )
+}
 
 type LoanStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED'
 
@@ -136,6 +163,7 @@ export function LoanRequestsPage() {
                   </td>
                   <td className="px-5 py-4">
                     <p className="text-xs text-gray-600">{formatDateTime(req.requestedAt)}</p>
+                    <ElapsedTimer dateStr={req.requestedAt} status={req.status} />
                     {req.note && <p className="text-xs text-gray-400 mt-0.5 italic">"{req.note}"</p>}
                   </td>
                   <td className="px-5 py-4">
