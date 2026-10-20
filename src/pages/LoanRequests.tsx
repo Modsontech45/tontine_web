@@ -131,7 +131,7 @@ export function LoanRequestsPage() {
                       {STATUS_LABELS[req.status]}
                     </span>
                     {req.reviewedBy && (
-                      <p className="text-xs text-gray-400 mt-1">par {req.reviewedBy.firstName}</p>
+                      <p className="text-xs text-gray-400 mt-1">par {req.reviewedBy.firstName} {req.reviewedBy.lastName}</p>
                     )}
                   </td>
                   <td className="px-5 py-4">
