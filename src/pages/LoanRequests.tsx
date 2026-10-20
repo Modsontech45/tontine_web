@@ -3,34 +3,35 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../lib/api'
 import { formatAmount, formatDateTime } from '../lib/format'
 
-function useElapsed(dateStr: string) {
-  const [elapsed, setElapsed] = useState(() => Date.now() - new Date(dateStr).getTime())
+function RepayCountdown({ dueDate }: { dueDate: string }) {
+  const [ms, setMs] = useState(() => new Date(dueDate).getTime() - Date.now())
   useEffect(() => {
-    const id = setInterval(() => setElapsed(Date.now() - new Date(dateStr).getTime()), 1000)
+    const id = setInterval(() => setMs(new Date(dueDate).getTime() - Date.now()), 1000)
     return () => clearInterval(id)
-  }, [dateStr])
-  const s = Math.floor(elapsed / 1000)
+  }, [dueDate])
+
+  const overdue = ms <= 0
+  const abs = Math.abs(ms)
+  const s = Math.floor(abs / 1000)
   const d = Math.floor(s / 86400)
   const h = Math.floor((s % 86400) / 3600)
   const m = Math.floor((s % 3600) / 60)
   const sec = s % 60
-  return { d, h, m, sec }
-}
 
-function ElapsedTimer({ dateStr, status }: { dateStr: string; status: LoanStatus }) {
-  const { d, h, m, sec } = useElapsed(dateStr)
-  const urgent = status === 'PENDING' && (d > 0 || h >= 2)
+  const color = overdue ? 'text-red-600 font-bold' : d <= 3 ? 'text-orange-500 font-semibold' : 'text-green-600'
   return (
-    <div className={`mt-1.5 flex items-center gap-1 text-xs font-mono tabular-nums ${urgent ? 'text-red-500' : 'text-gray-400'}`}>
-      {d > 0 && <span>{d}<span className="font-sans opacity-60">j</span></span>}
-      <span>{String(h).padStart(2,'0')}<span className="font-sans opacity-60">h</span></span>
-      <span>{String(m).padStart(2,'0')}<span className="font-sans opacity-60">m</span></span>
-      <span>{String(sec).padStart(2,'0')}<span className="font-sans opacity-60">s</span></span>
+    <div className={`mt-1.5 text-xs font-mono tabular-nums flex items-center gap-0.5 ${color}`}>
+      {overdue && <span className="font-sans mr-0.5">⚠</span>}
+      {d > 0 && <span>{d}<span className="font-sans opacity-70">j</span> </span>}
+      <span>{String(h).padStart(2,'0')}<span className="font-sans opacity-70">h</span></span>
+      <span>{String(m).padStart(2,'0')}<span className="font-sans opacity-70">m</span></span>
+      <span>{String(sec).padStart(2,'0')}<span className="font-sans opacity-70">s</span></span>
+      <span className="font-sans ml-1 opacity-70">{overdue ? 'de retard' : 'restant'}</span>
     </div>
   )
 }
 
-type LoanStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED'
+type LoanStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED' | 'REPAID'
 
 interface LoanRequest {
   id: string
@@ -38,10 +39,13 @@ interface LoanRequest {
   durationMonths: number
   interestPct: number
   totalRepay: number
+  paidAmount: number
+  remainingAmount: number
   status: LoanStatus
   note: string | null
   requestedAt: string
   reviewedAt: string | null
+  dueDate: string | null
   reviewNote: string | null
   client: { id: string; firstName: string; lastName: string; carnetNumber: string; phone: string }
   collector: { id: string; firstName: string; lastName: string }
@@ -53,12 +57,14 @@ const STATUS_STYLES: Record<LoanStatus, string> = {
   APPROVED:  'bg-green-100 text-green-700',
   REJECTED:  'bg-red-100 text-red-700',
   CANCELLED: 'bg-gray-100 text-gray-500',
+  REPAID:    'bg-blue-100 text-blue-700',
 }
 const STATUS_LABELS: Record<LoanStatus, string> = {
   PENDING:   'En attente',
   APPROVED:  'Approuvé',
   REJECTED:  'Rejeté',
   CANCELLED: 'Annulé',
+  REPAID:    'Remboursé',
 }
 
 export function LoanRequestsPage() {
@@ -163,7 +169,9 @@ export function LoanRequestsPage() {
                   </td>
                   <td className="px-5 py-4">
                     <p className="text-xs text-gray-600">{formatDateTime(req.requestedAt)}</p>
-                    <ElapsedTimer dateStr={req.requestedAt} status={req.status} />
+                    {req.status === 'APPROVED' && req.dueDate && (
+                      <RepayCountdown dueDate={req.dueDate} />
+                    )}
                     {req.note && <p className="text-xs text-gray-400 mt-0.5 italic">"{req.note}"</p>}
                   </td>
                   <td className="px-5 py-4">
