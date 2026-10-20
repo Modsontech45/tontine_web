@@ -14,6 +14,7 @@ const MENU: NavItem[] = [
   { to: '/caisse', label: 'Caisse', icon: IconCaisse },
   { to: '/stickers', label: 'Carnets / Stickers', icon: IconStickers },
   { to: '/credit', label: 'Demandes de crédit', icon: IconCredit, roles: ['SUPER_ADMIN', 'ADMIN', 'CONTROLLER'] },
+  { to: '/active-loans', label: 'Prêts en cours', icon: IconActiveLoans, roles: ['SUPER_ADMIN', 'ADMIN', 'CONTROLLER', 'CASHIER'] },
 ]
 
 const GENERAL: NavItem[] = [
@@ -246,6 +247,9 @@ function IconAudit({ active }: { active?: boolean }) {
 }
 function IconCredit({ active }: { active?: boolean }) {
   return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={active ? '#D4A017' : 'currentColor'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+}
+function IconActiveLoans({ active }: { active?: boolean }) {
+  return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={active ? '#D4A017' : 'currentColor'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/><polyline points="7,17 12,22 17,17"/></svg>
 }
 function IconCreditConfig({ active }: { active?: boolean }) {
   return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={active ? '#D4A017' : 'currentColor'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/><line x1="7" y1="10" x2="7" y2="10.01"/><line x1="12" y1="8" x2="12" y2="13"/></svg>

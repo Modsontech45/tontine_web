@@ -15,6 +15,7 @@ import { ForgotPasswordPage } from './pages/ForgotPassword'
 import { ActivityPage } from './pages/Activity'
 import { CreditConfigPage } from './pages/CreditConfig'
 import { LoanRequestsPage } from './pages/LoanRequests'
+import { ActiveLoansPage } from './pages/ActiveLoans'
 import { isAuthenticated } from './lib/auth'
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
@@ -47,6 +48,7 @@ export default function App() {
         <Route path="caisse" element={<CaissePage />} />
         <Route path="activity" element={<ActivityPage />} />
         <Route path="credit" element={<LoanRequestsPage />} />
+        <Route path="active-loans" element={<ActiveLoansPage />} />
         <Route path="credit-config" element={<CreditConfigPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
