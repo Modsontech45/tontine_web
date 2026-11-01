@@ -6,9 +6,27 @@ import { formatAmount, formatDateTime } from '../lib/format'
 interface Repayment {
   id: string
   amount: number
-  paidAt: string
+  status: 'PENDING' | 'CONFIRMED' | 'REJECTED'
+  recordedAt: string
+  confirmedAt: string | null
   note: string | null
-  cashier: { firstName: string; lastName: string }
+  collector: { id: string; firstName: string; lastName: string } | null
+  cashier: { id: string; firstName: string; lastName: string } | null
+}
+
+interface PendingRepayment {
+  id: string
+  amount: number
+  recordedAt: string
+  note: string | null
+  collector: { id: string; firstName: string; lastName: string } | null
+  loan: {
+    id: string
+    amount: number
+    totalRepay: number
+    dueDate: string | null
+    client: { id: string; firstName: string; lastName: string; carnetNumber: string; phone: string }
+  }
 }
 
 interface ActiveLoan {
@@ -98,12 +116,24 @@ function RepayModal({ loan, onClose }: { loan: ActiveLoan; onClose: () => void }
         {loan.repayments.length > 0 && (
           <div className="space-y-1.5">
             <p className="text-xs font-semibold text-gray-500 uppercase">Historique des paiements</p>
-            {loan.repayments.map(r => (
-              <div key={r.id} className="flex items-center justify-between text-xs bg-green-50 rounded-lg px-3 py-2">
-                <span className="text-green-700 font-semibold">{formatAmount(r.amount)}</span>
-                <span className="text-gray-400">{formatDateTime(r.paidAt)} · {r.cashier.firstName} {r.cashier.lastName}</span>
-              </div>
-            ))}
+            {loan.repayments.map(r => {
+              const isPending = r.status === 'PENDING'
+              const isRejected = r.status === 'REJECTED'
+              return (
+                <div key={r.id} className={`flex items-center justify-between text-xs rounded-lg px-3 py-2 ${isPending ? 'bg-amber-50' : isRejected ? 'bg-red-50' : 'bg-green-50'}`}>
+                  <div>
+                    <span className={`font-semibold ${isPending ? 'text-amber-700' : isRejected ? 'text-red-600 line-through' : 'text-green-700'}`}>
+                      {isPending ? '⏳ ' : isRejected ? '✕ ' : ''}{formatAmount(r.amount)}
+                    </span>
+                    {r.collector && <span className="ml-2 text-gray-400">par {r.collector.firstName} {r.collector.lastName}</span>}
+                  </div>
+                  <span className="text-gray-400">
+                    {formatDateTime(r.recordedAt)}
+                    {isPending ? ' · En attente' : ''}
+                  </span>
+                </div>
+              )
+            })}
           </div>
         )}
 
@@ -153,6 +183,70 @@ function RepayModal({ loan, onClose }: { loan: ActiveLoan; onClose: () => void }
   )
 }
 
+function PendingRepaymentInbox() {
+  const qc = useQueryClient()
+  const { data } = useQuery<{ data: PendingRepayment[] }>({
+    queryKey: ['pending-repayments'],
+    queryFn: () => api.get('/credit/pending-repayments').then(r => r.data),
+    refetchInterval: 15_000,
+  })
+  const pending = data?.data ?? []
+
+  const confirm = useMutation({
+    mutationFn: (id: string) => api.post(`/credit/repayments/${id}/confirm`).then(r => r.data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['pending-repayments'] }); qc.invalidateQueries({ queryKey: ['active-loans'] }) },
+  })
+  const reject = useMutation({
+    mutationFn: (id: string) => api.post(`/credit/repayments/${id}/reject`).then(r => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['pending-repayments'] }),
+  })
+
+  if (pending.length === 0) return null
+
+  return (
+    <div className="rounded-2xl overflow-hidden" style={{ border: '2px solid #f59e0b', background: 'var(--c-card)' }}>
+      <div className="px-5 py-3 flex items-center gap-2" style={{ background: '#fef3c7' }}>
+        <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+        <p className="font-bold text-amber-800 text-sm">{pending.length} paiement{pending.length > 1 ? 's' : ''} en attente de confirmation</p>
+      </div>
+      <div className="divide-y" style={{ borderColor: 'var(--c-card-border)' }}>
+        {pending.map(p => (
+          <div key={p.id} className="px-5 py-4 flex items-center justify-between gap-4 flex-wrap">
+            <div>
+              <p className="font-semibold text-sm" style={{ color: 'var(--c-text-h)' }}>
+                {p.loan.client.firstName} {p.loan.client.lastName}
+                <span className="ml-2 font-mono text-xs" style={{ color: 'var(--c-text-s)' }}>{p.loan.client.carnetNumber}</span>
+              </p>
+              <p className="text-xs mt-0.5" style={{ color: 'var(--c-text-s)' }}>
+                Collecté par {p.collector ? `${p.collector.firstName} ${p.collector.lastName}` : '—'}
+                {' · '}{formatDateTime(p.recordedAt)}
+              </p>
+              {p.note && <p className="text-xs italic mt-0.5" style={{ color: 'var(--c-text-s)' }}>"{p.note}"</p>}
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-lg font-bold text-indigo-600">{formatAmount(p.amount)}</span>
+              <button
+                onClick={() => confirm.mutate(p.id)}
+                disabled={confirm.isPending}
+                className="px-4 py-1.5 rounded-lg text-xs font-bold bg-green-600 text-white hover:bg-green-700 disabled:opacity-50"
+              >
+                ✓ Confirmer
+              </button>
+              <button
+                onClick={() => reject.mutate(p.id)}
+                disabled={reject.isPending}
+                className="px-4 py-1.5 rounded-lg text-xs font-bold bg-red-500 text-white hover:bg-red-600 disabled:opacity-50"
+              >
+                ✕ Rejeter
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export function ActiveLoansPage() {
   const [selectedLoan, setSelectedLoan] = useState<ActiveLoan | null>(null)
 
@@ -167,6 +261,8 @@ export function ActiveLoansPage() {
   return (
     <div className="space-y-6">
       {selectedLoan && <RepayModal loan={selectedLoan} onClose={() => setSelectedLoan(null)} />}
+
+      <PendingRepaymentInbox />
 
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
@@ -249,12 +345,21 @@ export function ActiveLoansPage() {
                 {/* Repayment chips */}
                 {loan.repayments.length > 0 && (
                   <div className="flex flex-wrap gap-2 pt-1">
-                    {loan.repayments.map(r => (
-                      <span key={r.id} className="px-3 py-1 text-xs rounded-full font-semibold"
-                        style={{ background: 'rgba(99,102,241,0.1)', color: '#4f46e5' }}>
-                        +{formatAmount(r.amount)} · {new Date(r.paidAt).toLocaleDateString('fr-FR')}
-                      </span>
-                    ))}
+                    {loan.repayments.map(r => {
+                      const styles = {
+                        CONFIRMED: { bg: 'rgba(34,197,94,0.12)', color: '#15803d' },
+                        PENDING:   { bg: 'rgba(245,158,11,0.12)', color: '#b45309' },
+                        REJECTED:  { bg: 'rgba(239,68,68,0.10)', color: '#b91c1c' },
+                      }[r.status] ?? { bg: 'rgba(99,102,241,0.1)', color: '#4f46e5' }
+                      return (
+                        <span key={r.id} className="px-3 py-1 text-xs rounded-full font-semibold"
+                          style={{ background: styles.bg, color: styles.color }}>
+                          {r.status === 'PENDING' ? '⏳ ' : r.status === 'REJECTED' ? '✕ ' : ''}
+                          {formatAmount(r.amount)} · {new Date(r.recordedAt).toLocaleDateString('fr-FR')}
+                          {r.collector && ` · ${r.collector.firstName}`}
+                        </span>
+                      )
+                    })}
                   </div>
                 )}
               </div>

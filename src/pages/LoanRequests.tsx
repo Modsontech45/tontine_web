@@ -38,6 +38,8 @@ interface LoanRequest {
   amount: number
   durationMonths: number
   interestPct: number
+  interestAmount: number
+  disbursedAmount: number
   totalRepay: number
   paidAmount: number
   remainingAmount: number
@@ -132,9 +134,8 @@ export function LoanRequestsPage() {
             <thead className="bg-gray-50 border-b border-gray-100">
               <tr>
                 <th className="text-left px-5 py-3 font-semibold text-gray-500 text-xs uppercase">Client</th>
-                <th className="text-left px-5 py-3 font-semibold text-gray-500 text-xs uppercase">Montant</th>
-                <th className="text-left px-5 py-3 font-semibold text-gray-500 text-xs uppercase">Durée / Taux</th>
-                <th className="text-left px-5 py-3 font-semibold text-gray-500 text-xs uppercase">Remboursement</th>
+                <th className="text-left px-5 py-3 font-semibold text-gray-500 text-xs uppercase">Montant demandé</th>
+                <th className="text-left px-5 py-3 font-semibold text-gray-500 text-xs uppercase">Décaissement / Remboursement</th>
                 <th className="text-left px-5 py-3 font-semibold text-gray-500 text-xs uppercase">Statut</th>
                 <th className="text-left px-5 py-3 font-semibold text-gray-500 text-xs uppercase">Date</th>
                 <th className="text-left px-5 py-3 font-semibold text-gray-500 text-xs uppercase">Actions</th>
@@ -150,14 +151,23 @@ export function LoanRequestsPage() {
                   </td>
                   <td className="px-5 py-4">
                     <p className="font-bold text-gray-900">{formatAmount(req.amount)}</p>
+                    <p className="text-xs text-gray-400">{req.durationMonths} mois · {req.interestPct}%</p>
                   </td>
                   <td className="px-5 py-4">
-                    <p className="font-medium text-gray-700">{req.durationMonths} mois</p>
-                    <p className="text-xs text-gray-400">{req.interestPct}% d'intérêt</p>
-                  </td>
-                  <td className="px-5 py-4">
-                    <p className="font-bold text-indigo-700">{formatAmount(req.totalRepay)}</p>
-                    <p className="text-xs text-gray-400">+{formatAmount(req.totalRepay - req.amount)}</p>
+                    <div className="space-y-0.5">
+                      <div className="flex items-center justify-between gap-4 text-xs">
+                        <span className="text-gray-400">Intérêt prélevé</span>
+                        <span className="text-red-500 font-medium">-{formatAmount(req.interestAmount ?? (req.totalRepay - req.amount))}</span>
+                      </div>
+                      <div className="flex items-center justify-between gap-4">
+                        <span className="text-xs text-gray-400">Remis au client</span>
+                        <span className="font-bold text-amber-700">{formatAmount(req.disbursedAmount ?? req.amount)}</span>
+                      </div>
+                      <div className="flex items-center justify-between gap-4 text-xs">
+                        <span className="text-gray-400">À rembourser</span>
+                        <span className="font-semibold text-indigo-700">{formatAmount(req.totalRepay)}</span>
+                      </div>
+                    </div>
                   </td>
                   <td className="px-5 py-4">
                     <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${STATUS_STYLES[req.status]}`}>
@@ -211,7 +221,7 @@ export function LoanRequestsPage() {
                 </tr>
               ))}
               {requests.length === 0 && (
-                <tr><td colSpan={7} className="py-16 text-center text-gray-400">Aucune demande {filter !== 'ALL' ? STATUS_LABELS[filter as LoanStatus].toLowerCase() : ''}</td></tr>
+                <tr><td colSpan={6} className="py-16 text-center text-gray-400">Aucune demande {filter !== 'ALL' ? STATUS_LABELS[filter as LoanStatus].toLowerCase() : ''}</td></tr>
               )}
             </tbody>
           </table>
