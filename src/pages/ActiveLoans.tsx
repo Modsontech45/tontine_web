@@ -86,13 +86,16 @@ function RepayModal({ loan, onClose }: { loan: ActiveLoan; onClose: () => void }
   const [fullPay, setFullPay] = useState(false)
 
   const [change, setChange] = useState<number | null>(null)
+  const [contributionCredit, setContributionCredit] = useState<number | null>(null)
 
   const repay = useMutation({
     mutationFn: (data: { amount: number; note?: string }) =>
       api.post(`/credit/requests/${loan.id}/repay`, data).then(r => r.data),
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ['active-loans'] })
-      if (data.change > 0) {
+      if ((data.contributionCredit ?? 0) > 0) {
+        setContributionCredit(data.contributionCredit)
+      } else if (data.change > 0) {
         setChange(data.change)
       } else {
         onClose()
@@ -150,8 +153,23 @@ function RepayModal({ loan, onClose }: { loan: ActiveLoan; onClose: () => void }
           </div>
         )}
 
-        {/* Change confirmation screen */}
-        {change !== null ? (
+        {/* Contribution credit screen (overpayment from round daily amount) */}
+        {contributionCredit !== null ? (
+          <div className="text-center space-y-4">
+            <div className="w-16 h-16 mx-auto rounded-full bg-indigo-100 flex items-center justify-center">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+            </div>
+            <div>
+              <p className="text-lg font-bold text-gray-900">Prêt soldé !</p>
+              <p className="text-sm text-gray-500 mt-1">Excédent à créditer en contribution journalière</p>
+              <p className="text-3xl font-bold text-indigo-600 mt-2">{formatAmount(contributionCredit)} FCFA</p>
+              <p className="text-xs text-gray-400 mt-1">Le versement journalier dépasse le total du prêt — enregistrer la différence comme contribution.</p>
+            </div>
+            <button onClick={onClose} className="w-full py-2.5 rounded-xl text-white font-bold" style={{ background: 'linear-gradient(135deg,#6366f1,#8b5cf6)' }}>
+              OK — Créditer en contribution
+            </button>
+          </div>
+        ) : change !== null ? (
           <div className="text-center space-y-4">
             <div className="w-16 h-16 mx-auto rounded-full bg-green-100 flex items-center justify-center">
               <span className="text-3xl">💰</span>
