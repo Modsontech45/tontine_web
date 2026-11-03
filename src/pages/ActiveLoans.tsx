@@ -34,6 +34,9 @@ interface ActiveLoan {
   amount: number
   durationMonths: number
   interestPct: number
+  interestAmount: number
+  disbursedAmount: number
+  dailyAmount: number
   totalRepay: number
   paidAmount: number
   remainingAmount: number
@@ -82,10 +85,19 @@ function RepayModal({ loan, onClose }: { loan: ActiveLoan; onClose: () => void }
   const [note, setNote] = useState('')
   const [fullPay, setFullPay] = useState(false)
 
+  const [change, setChange] = useState<number | null>(null)
+
   const repay = useMutation({
     mutationFn: (data: { amount: number; note?: string }) =>
       api.post(`/credit/requests/${loan.id}/repay`, data).then(r => r.data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['active-loans'] }); onClose() },
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ['active-loans'] })
+      if (data.change > 0) {
+        setChange(data.change)
+      } else {
+        onClose()
+      }
+    },
   })
 
   const effectiveAmount = fullPay ? loan.remainingAmount : parseInt(amount) || 0
@@ -101,7 +113,8 @@ function RepayModal({ loan, onClose }: { loan: ActiveLoan; onClose: () => void }
         {/* Summary */}
         <div className="grid grid-cols-3 gap-3">
           {[
-            { label: 'Total dû', value: formatAmount(loan.totalRepay), color: 'text-gray-800' },
+            { label: 'Remis au client', value: formatAmount(loan.disbursedAmount || loan.amount), color: 'text-gray-800' },
+            { label: 'À rembourser', value: formatAmount(loan.totalRepay), color: 'text-gray-800' },
             { label: 'Déjà payé', value: formatAmount(loan.paidAmount), color: 'text-green-600' },
             { label: 'Reste', value: formatAmount(loan.remainingAmount), color: 'text-indigo-700 font-bold' },
           ].map(({ label, value, color }) => (
@@ -137,47 +150,86 @@ function RepayModal({ loan, onClose }: { loan: ActiveLoan; onClose: () => void }
           </div>
         )}
 
-        {/* Payment input */}
-        <div className="space-y-3">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" checked={fullPay} onChange={e => setFullPay(e.target.checked)}
-              className="w-4 h-4 rounded accent-indigo-600" />
-            <span className="text-sm font-medium text-gray-700">Paiement intégral ({formatAmount(loan.remainingAmount)})</span>
-          </label>
-
-          {!fullPay && (
-            <div>
-              <label className="block text-xs font-semibold text-gray-500 mb-1">Montant (FCFA)</label>
-              <input type="number" value={amount} onChange={e => setAmount(e.target.value)}
-                min={1} max={loan.remainingAmount} placeholder={`Max ${formatAmount(loan.remainingAmount)}`}
-                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+        {/* Change confirmation screen */}
+        {change !== null ? (
+          <div className="text-center space-y-4">
+            <div className="w-16 h-16 mx-auto rounded-full bg-green-100 flex items-center justify-center">
+              <span className="text-3xl">💰</span>
             </div>
-          )}
-
-          <div>
-            <label className="block text-xs font-semibold text-gray-500 mb-1">Note (optionnel)</label>
-            <input type="text" value={note} onChange={e => setNote(e.target.value)}
-              placeholder="Ex: paiement cash"
-              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+            <div>
+              <p className="text-lg font-bold text-gray-900">Paiement enregistré</p>
+              <p className="text-sm text-gray-500 mt-1">Monnaie à rendre au client</p>
+              <p className="text-3xl font-bold text-green-600 mt-2">{formatAmount(change)} FCFA</p>
+            </div>
+            <button onClick={onClose} className="w-full py-2.5 rounded-xl bg-green-600 text-white font-bold hover:bg-green-700">
+              OK — Monnaie rendue
+            </button>
           </div>
-        </div>
+        ) : (
+          <>
+            {/* Quick-fill buttons */}
+            {loan.dailyAmount > 0 && (
+              <div className="flex gap-2 flex-wrap">
+                <p className="w-full text-xs font-semibold text-gray-500">Versement rapide :</p>
+                {[
+                  { label: `Journalier (${formatAmount(loan.dailyAmount)})`, val: loan.dailyAmount },
+                  { label: `Solde (${formatAmount(loan.remainingAmount)})`, val: loan.remainingAmount },
+                ].map(o => (
+                  <button key={o.label}
+                    onClick={() => { setFullPay(false); setAmount(String(o.val)) }}
+                    className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100">
+                    {o.label}
+                  </button>
+                ))}
+              </div>
+            )}
 
-        {repay.isError && (
-          <p className="text-sm text-red-500">{(repay.error as any)?.response?.data?.error?.message ?? 'Erreur'}</p>
+            {/* Payment input */}
+            <div className="space-y-3">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={fullPay} onChange={e => setFullPay(e.target.checked)}
+                  className="w-4 h-4 rounded accent-indigo-600" />
+                <span className="text-sm font-medium text-gray-700">Paiement intégral ({formatAmount(loan.remainingAmount)})</span>
+              </label>
+
+              {!fullPay && (
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 mb-1">Montant reçu (FCFA)</label>
+                  <input type="number" value={amount} onChange={e => setAmount(e.target.value)}
+                    min={1} placeholder="Montant reçu du client"
+                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+                  {effectiveAmount > loan.remainingAmount && (
+                    <p className="text-xs text-amber-600 mt-1">⚠ Dépassement de {formatAmount(effectiveAmount - loan.remainingAmount)} → monnaie à rendre</p>
+                  )}
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 mb-1">Note (optionnel)</label>
+                <input type="text" value={note} onChange={e => setNote(e.target.value)}
+                  placeholder="Ex: paiement cash"
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+              </div>
+            </div>
+
+            {repay.isError && (
+              <p className="text-sm text-red-500">{(repay.error as any)?.response?.data?.error?.message ?? 'Erreur'}</p>
+            )}
+
+            <div className="flex gap-3 pt-1">
+              <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50">
+                Annuler
+              </button>
+              <button
+                onClick={() => repay.mutate({ amount: effectiveAmount, note: note || undefined })}
+                disabled={repay.isPending || effectiveAmount <= 0}
+                className="flex-1 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-bold hover:bg-indigo-700 disabled:opacity-50"
+              >
+                {repay.isPending ? 'En cours…' : `Enregistrer ${formatAmount(effectiveAmount)}`}
+              </button>
+            </div>
+          </>
         )}
-
-        <div className="flex gap-3 pt-1">
-          <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50">
-            Annuler
-          </button>
-          <button
-            onClick={() => repay.mutate({ amount: effectiveAmount, note: note || undefined })}
-            disabled={repay.isPending || effectiveAmount <= 0}
-            className="flex-1 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-bold hover:bg-indigo-700 disabled:opacity-50"
-          >
-            {repay.isPending ? 'En cours…' : `Payer ${formatAmount(effectiveAmount)}`}
-          </button>
-        </div>
       </div>
     </div>
   )
@@ -310,10 +362,18 @@ export function ActiveLoansPage() {
                       via {loan.collector.firstName} {loan.collector.lastName}
                     </p>
                   </div>
-                  <div className="text-right shrink-0">
+                  <div className="text-right shrink-0 space-y-0.5">
                     <p className="font-bold text-indigo-600 text-lg">{formatAmount(loan.amount)}</p>
-                    <p className="text-xs" style={{ color: 'var(--c-text-s)' }}>{loan.durationMonths} mois · {loan.interestPct}%</p>
-                    <p className="text-xs font-semibold" style={{ color: 'var(--c-text-h)' }}>Total: {formatAmount(loan.totalRepay)}</p>
+                    <p className="text-xs" style={{ color: 'var(--c-text-s)' }}>{loan.durationMonths} mois ({loan.durationMonths * 31}j) · {loan.interestPct}%</p>
+                    {loan.interestAmount > 0 && (
+                      <p className="text-xs text-red-500">Intérêt: -{formatAmount(loan.interestAmount)}</p>
+                    )}
+                    <p className="text-xs" style={{ color: 'var(--c-text-s)' }}>Remis: <span className="font-semibold text-amber-600">{formatAmount(loan.disbursedAmount || loan.amount)}</span></p>
+                    {loan.dailyAmount > 0 && (
+                      <span className="inline-block px-2 py-0.5 rounded-full text-xs font-bold bg-indigo-100 text-indigo-700">
+                        {formatAmount(loan.dailyAmount)}/jour
+                      </span>
+                    )}
                   </div>
                 </div>
 
