@@ -3,9 +3,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../lib/api'
 import { formatAmount } from '../lib/format'
 
-interface CreditPackage { amount: number; months: number; interestPct: number }
+interface CreditPackage { amount: number; months: number; interestPct: number; minContributingMonths: number }
 interface Config {
-  minContributingMonths: number
   tiers: CreditPackage[]
   isEnabled: boolean
 }
@@ -108,10 +107,9 @@ export function CreditConfigPage() {
   })
 
   const [form, setForm] = useState<Config>({
-    minContributingMonths: 3,
     tiers: [
-      { amount: 50000, months: 1, interestPct: 5 },
-      { amount: 100000, months: 2, interestPct: 7 },
+      { amount: 50000, months: 1, interestPct: 5, minContributingMonths: 1 },
+      { amount: 100000, months: 2, interestPct: 7, minContributingMonths: 3 },
     ],
     isEnabled: true,
   })
@@ -138,7 +136,7 @@ export function CreditConfigPage() {
     setForm(f => { const t = [...f.tiers]; t[i] = { ...t[i], [field]: val }; return { ...f, tiers: t } })
   }
   function addPkg() {
-    setForm(f => ({ ...f, tiers: [...f.tiers, { amount: 50000, months: 1, interestPct: 5 }] }))
+    setForm(f => ({ ...f, tiers: [...f.tiers, { amount: 50000, months: 1, interestPct: 5, minContributingMonths: 1 }] }))
   }
   function removePkg(i: number) {
     setForm(f => ({ ...f, tiers: f.tiers.filter((_, j) => j !== i) }))
@@ -187,36 +185,11 @@ export function CreditConfigPage() {
         </div>
       </div>
 
-      {/* Eligibility */}
-      <div className="rounded-2xl shadow-sm p-6 space-y-5" style={card}>
-        <h3 className="font-bold flex items-center gap-2" style={heading}>
-          <span className="w-6 h-6 rounded-full bg-amber-100 text-amber-700 text-xs font-bold flex items-center justify-center">1</span>
-          Éligibilité
-        </h3>
-
-        <div>
-          <label className="block text-sm font-medium mb-1.5" style={heading}>Mois de contribution minimum</label>
-          <p className="text-xs mb-2" style={sub}>Le client doit contribuer depuis au moins ce nombre de mois avant de pouvoir demander un crédit.</p>
-          <div className="flex items-center gap-3">
-            <input
-              type="range" min={1} max={12} step={1}
-              value={form.minContributingMonths}
-              onChange={e => setForm(f => ({ ...f, minContributingMonths: +e.target.value }))}
-              className="flex-1 accent-indigo-600"
-            />
-            <span className="w-16 text-center font-bold text-indigo-400 rounded-lg py-1 text-sm" style={{ background: 'var(--c-input-bg)', border: '1px solid var(--c-input-border)' }}>
-              {form.minContributingMonths} mois
-            </span>
-          </div>
-        </div>
-
-      </div>
-
-      {/* Interest tiers */}
+      {/* Packages */}
       <div className="rounded-2xl shadow-sm p-6 space-y-4" style={card}>
         <div className="flex items-center justify-between">
           <h3 className="font-bold flex items-center gap-2" style={heading}>
-            <span className="w-6 h-6 rounded-full bg-amber-100 text-amber-700 text-xs font-bold flex items-center justify-center">2</span>
+            <span className="w-6 h-6 rounded-full bg-amber-100 text-amber-700 text-xs font-bold flex items-center justify-center">1</span>
             Packages de crédit
           </h3>
           <button onClick={addPkg} disabled={form.tiers.length >= 12}
@@ -235,8 +208,8 @@ export function CreditConfigPage() {
             const daily = Math.ceil(pkg.amount / (pkg.months * 31))
             return (
               <div key={i} className="p-4 rounded-xl" style={{ background: 'var(--c-input-bg)', border: '1px solid var(--c-card-border)' }}>
-                <div className="flex items-end gap-3 mb-3">
-                  <div className="flex-1">
+                <div className="grid grid-cols-2 gap-3 mb-3">
+                  <div>
                     <label className="text-xs font-medium" style={sub}>Montant (FCFA)</label>
                     <input type="number" min={1000} step={5000} value={pkg.amount}
                       onChange={e => updatePkg(i, 'amount', +e.target.value)}
@@ -244,7 +217,7 @@ export function CreditConfigPage() {
                       style={inputStyle}
                     />
                   </div>
-                  <div className="flex-1">
+                  <div>
                     <label className="text-xs font-medium" style={sub}>Durée (mois)</label>
                     <input type="number" min={1} max={24} value={pkg.months}
                       onChange={e => updatePkg(i, 'months', +e.target.value)}
@@ -252,7 +225,7 @@ export function CreditConfigPage() {
                       style={inputStyle}
                     />
                   </div>
-                  <div className="flex-1">
+                  <div>
                     <label className="text-xs font-medium" style={sub}>Intérêt (%)</label>
                     <input type="number" min={0} max={100} step={0.5} value={pkg.interestPct}
                       onChange={e => updatePkg(i, 'interestPct', +e.target.value)}
@@ -260,17 +233,26 @@ export function CreditConfigPage() {
                       style={inputStyle}
                     />
                   </div>
+                  <div>
+                    <label className="text-xs font-medium" style={sub}>Mois de contribution requis</label>
+                    <input type="number" min={1} max={24} value={pkg.minContributingMonths}
+                      onChange={e => updatePkg(i, 'minContributingMonths', +e.target.value)}
+                      className="mt-1 w-full rounded-lg px-3 py-1.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                      style={inputStyle}
+                    />
+                  </div>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex gap-4 text-xs flex-wrap">
+                    <span className="text-red-400">Intérêt: −{formatAmount(interest)}</span>
+                    <span className="text-amber-400 font-bold">Reçoit: {formatAmount(received)}</span>
+                    <span className="text-indigo-400">Rembourse: {formatAmount(pkg.amount)} sur {pkg.months * 31}j</span>
+                    <span className="font-semibold" style={{ color: 'var(--c-text-h)' }}>≈ {formatAmount(daily)}/jour</span>
+                  </div>
                   <button onClick={() => removePkg(i)} disabled={form.tiers.length <= 1}
-                    className="mb-1 text-red-400 hover:text-red-500 disabled:opacity-30 flex-shrink-0">
+                    className="text-red-400 hover:text-red-500 disabled:opacity-30 flex-shrink-0 ml-3">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3,6 5,6 21,6"/><path d="M19,6l-1,14H6L5,6"/><path d="M10,11v6M14,11v6"/></svg>
                   </button>
-                </div>
-                <div className="flex gap-4 text-xs flex-wrap">
-                  <span style={sub}>Prêté: <strong style={{ color: 'var(--c-text-h)' }}>{formatAmount(pkg.amount)}</strong></span>
-                  <span className="text-red-400">Intérêt: −{formatAmount(interest)}</span>
-                  <span className="text-amber-400 font-bold">Reçoit: {formatAmount(received)}</span>
-                  <span className="text-indigo-400">Rembourse: {formatAmount(pkg.amount)} sur {pkg.months * 31}j</span>
-                  <span style={sub}>≈ {formatAmount(daily)}/jour</span>
                 </div>
               </div>
             )
@@ -282,10 +264,6 @@ export function CreditConfigPage() {
       <div className="rounded-2xl p-6" style={{ background: 'var(--c-input-bg)', border: '1px solid var(--c-card-border)' }}>
         <h3 className="font-bold mb-3" style={heading}>Aperçu des règles</h3>
         <ul className="space-y-2 text-sm" style={body}>
-          <li className="flex items-start gap-2">
-            <span className="text-indigo-400 mt-0.5">✓</span>
-            Un client doit contribuer depuis <strong>{form.minContributingMonths} mois</strong> avant d'être éligible.
-          </li>
           {form.tiers.map((p, i) => {
             const interest = Math.round(p.amount * p.interestPct / 100)
             const received = p.amount - interest
@@ -294,10 +272,11 @@ export function CreditConfigPage() {
               <li key={i} className="flex items-start gap-2">
                 <span className="text-indigo-400 mt-0.5">✓</span>
                 <span>
-                  Package <strong>{formatAmount(p.amount)}</strong> sur <strong>{p.months} mois</strong> à <strong>{p.interestPct}%</strong> —
-                  {' '}le client reçoit <strong className="text-amber-500">{formatAmount(received)}</strong>,
+                  Package <strong>{formatAmount(p.amount)}</strong> · <strong>{p.months} mois</strong> · <strong>{p.interestPct}%</strong> —
+                  {' '}reçoit <strong className="text-amber-500">{formatAmount(received)}</strong>,
                   {' '}rembourse <strong>{formatAmount(p.amount)}</strong>
                   {' '}à <strong>{formatAmount(daily)}/jour</strong>.
+                  {' '}Éligible après <strong>{p.minContributingMonths} mois</strong> de contribution.
                 </span>
               </li>
             )
