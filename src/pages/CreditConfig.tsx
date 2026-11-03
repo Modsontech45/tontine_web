@@ -266,10 +266,19 @@ export function CreditConfigPage() {
                   style={inputStyle}
                 />
               </div>
-              <div className="flex-1 pt-4">
+              <div className="flex-1 pt-4 space-y-0.5">
                 <p className="text-xs" style={sub}>Sur {formatAmount(form.maxLoanAmount)}</p>
-                <p className="text-sm font-bold text-emerald-400">
-                  → {formatAmount(Math.round(form.maxLoanAmount * (1 + tier.interestPct / 100)))}
+                <p className="text-xs text-red-400">
+                  − {formatAmount(Math.round(form.maxLoanAmount * tier.interestPct / 100))} intérêt
+                </p>
+                <p className="text-sm font-bold text-amber-400">
+                  Reçoit {formatAmount(Math.round(form.maxLoanAmount * (1 - tier.interestPct / 100)))}
+                </p>
+                <p className="text-xs text-indigo-400">
+                  Rembourse {formatAmount(form.maxLoanAmount)} · {tier.months * 31}j
+                </p>
+                <p className="text-xs" style={sub}>
+                  ≈ {formatAmount(Math.ceil(form.maxLoanAmount / (tier.months * 31)))}/jour
                 </p>
               </div>
               <button onClick={() => removeTier(i)} disabled={form.tiers.length <= 1}
@@ -293,12 +302,22 @@ export function CreditConfigPage() {
             <span className="text-indigo-400 mt-0.5">✓</span>
             Le montant maximum d'un prêt est <strong>{formatAmount(form.maxLoanAmount)}</strong>.
           </li>
-          {form.tiers.map((t, i) => (
-            <li key={i} className="flex items-start gap-2">
-              <span className="text-indigo-400 mt-0.5">✓</span>
-              Prêt sur <strong>{t.months} mois</strong> : taux d'intérêt <strong>{t.interestPct}%</strong>.
-            </li>
-          ))}
+          {form.tiers.map((t, i) => {
+            const interest = Math.round(form.maxLoanAmount * t.interestPct / 100)
+            const received = form.maxLoanAmount - interest
+            const daily = Math.ceil(form.maxLoanAmount / (t.months * 31))
+            return (
+              <li key={i} className="flex items-start gap-2">
+                <span className="text-indigo-400 mt-0.5">✓</span>
+                <span>
+                  Prêt sur <strong>{t.months} mois ({t.months * 31} jours)</strong> à <strong>{t.interestPct}%</strong> —
+                  {' '}le client reçoit <strong className="text-amber-500">{formatAmount(received)}</strong>,
+                  {' '}rembourse <strong>{formatAmount(form.maxLoanAmount)}</strong>
+                  {' '}à <strong>{formatAmount(daily)}/jour</strong>.
+                </span>
+              </li>
+            )
+          })}
         </ul>
       </div>
 
