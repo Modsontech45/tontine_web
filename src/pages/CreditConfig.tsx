@@ -3,11 +3,10 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../lib/api'
 import { formatAmount } from '../lib/format'
 
-interface Tier { months: number; interestPct: number }
+interface CreditPackage { amount: number; months: number; interestPct: number }
 interface Config {
   minContributingMonths: number
-  maxLoanAmount: number
-  tiers: Tier[]
+  tiers: CreditPackage[]
   isEnabled: boolean
 }
 
@@ -110,11 +109,9 @@ export function CreditConfigPage() {
 
   const [form, setForm] = useState<Config>({
     minContributingMonths: 3,
-    maxLoanAmount: 100000,
     tiers: [
-      { months: 1, interestPct: 5 },
-      { months: 2, interestPct: 10 },
-      { months: 3, interestPct: 15 },
+      { amount: 50000, months: 1, interestPct: 5 },
+      { amount: 100000, months: 2, interestPct: 7 },
     ],
     isEnabled: true,
   })
@@ -137,14 +134,13 @@ export function CreditConfigPage() {
     },
   })
 
-  function updateTier(i: number, field: keyof Tier, val: number) {
+  function updatePkg(i: number, field: keyof CreditPackage, val: number) {
     setForm(f => { const t = [...f.tiers]; t[i] = { ...t[i], [field]: val }; return { ...f, tiers: t } })
   }
-  function addTier() {
-    const next = (form.tiers[form.tiers.length - 1]?.months ?? 0) + 1
-    setForm(f => ({ ...f, tiers: [...f.tiers, { months: next, interestPct: 0 }] }))
+  function addPkg() {
+    setForm(f => ({ ...f, tiers: [...f.tiers, { amount: 50000, months: 1, interestPct: 5 }] }))
   }
-  function removeTier(i: number) {
+  function removePkg(i: number) {
     setForm(f => ({ ...f, tiers: f.tiers.filter((_, j) => j !== i) }))
   }
 
@@ -214,21 +210,6 @@ export function CreditConfigPage() {
           </div>
         </div>
 
-        <div>
-          <label className="block text-sm font-medium mb-1.5" style={heading}>Montant maximum du prêt (FCFA)</label>
-          <p className="text-xs mb-2" style={sub}>Plafond absolu pour toute demande de crédit.</p>
-          <div className="flex items-center gap-3">
-            <input
-              type="range" min={10000} max={500000} step={5000}
-              value={form.maxLoanAmount}
-              onChange={e => setForm(f => ({ ...f, maxLoanAmount: +e.target.value }))}
-              className="flex-1 accent-indigo-600"
-            />
-            <span className="w-24 text-center font-bold text-indigo-400 rounded-lg py-1 text-sm" style={{ background: 'var(--c-input-bg)', border: '1px solid var(--c-input-border)' }}>
-              {formatAmount(form.maxLoanAmount)}
-            </span>
-          </div>
-        </div>
       </div>
 
       {/* Interest tiers */}
@@ -236,57 +217,64 @@ export function CreditConfigPage() {
         <div className="flex items-center justify-between">
           <h3 className="font-bold flex items-center gap-2" style={heading}>
             <span className="w-6 h-6 rounded-full bg-amber-100 text-amber-700 text-xs font-bold flex items-center justify-center">2</span>
-            Taux d'intérêt par durée
+            Packages de crédit
           </h3>
-          <button onClick={addTier} disabled={form.tiers.length >= 6}
+          <button onClick={addPkg} disabled={form.tiers.length >= 12}
             className="text-xs font-semibold px-3 py-1.5 rounded-lg text-indigo-400 hover:opacity-80 disabled:opacity-40"
             style={{ background: 'var(--c-input-bg)', border: '1px solid var(--c-input-border)' }}>
-            + Ajouter une durée
+            + Ajouter un package
           </button>
         </div>
 
-        <p className="text-xs" style={sub}>Définissez le taux d'intérêt selon la durée de remboursement choisie par le client.</p>
+        <p className="text-xs" style={sub}>Chaque package définit un montant précis, une durée et un taux d'intérêt. Le client choisit parmi ces packages.</p>
 
         <div className="space-y-3">
-          {form.tiers.map((tier, i) => (
-            <div key={i} className="flex items-center gap-4 p-4 rounded-xl" style={{ background: 'var(--c-input-bg)', border: '1px solid var(--c-card-border)' }}>
-              <div className="flex-1">
-                <label className="text-xs font-medium" style={sub}>Durée (mois)</label>
-                <input type="number" min={1} max={24} value={tier.months}
-                  onChange={e => updateTier(i, 'months', +e.target.value)}
-                  className="mt-1 w-full rounded-lg px-3 py-1.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-400"
-                  style={inputStyle}
-                />
+          {form.tiers.map((pkg, i) => {
+            const interest = Math.round(pkg.amount * pkg.interestPct / 100)
+            const received = pkg.amount - interest
+            const daily = Math.ceil(pkg.amount / (pkg.months * 31))
+            return (
+              <div key={i} className="p-4 rounded-xl" style={{ background: 'var(--c-input-bg)', border: '1px solid var(--c-card-border)' }}>
+                <div className="flex items-end gap-3 mb-3">
+                  <div className="flex-1">
+                    <label className="text-xs font-medium" style={sub}>Montant (FCFA)</label>
+                    <input type="number" min={1000} step={5000} value={pkg.amount}
+                      onChange={e => updatePkg(i, 'amount', +e.target.value)}
+                      className="mt-1 w-full rounded-lg px-3 py-1.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                      style={inputStyle}
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <label className="text-xs font-medium" style={sub}>Durée (mois)</label>
+                    <input type="number" min={1} max={24} value={pkg.months}
+                      onChange={e => updatePkg(i, 'months', +e.target.value)}
+                      className="mt-1 w-full rounded-lg px-3 py-1.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                      style={inputStyle}
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <label className="text-xs font-medium" style={sub}>Intérêt (%)</label>
+                    <input type="number" min={0} max={100} step={0.5} value={pkg.interestPct}
+                      onChange={e => updatePkg(i, 'interestPct', +e.target.value)}
+                      className="mt-1 w-full rounded-lg px-3 py-1.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                      style={inputStyle}
+                    />
+                  </div>
+                  <button onClick={() => removePkg(i)} disabled={form.tiers.length <= 1}
+                    className="mb-1 text-red-400 hover:text-red-500 disabled:opacity-30 flex-shrink-0">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3,6 5,6 21,6"/><path d="M19,6l-1,14H6L5,6"/><path d="M10,11v6M14,11v6"/></svg>
+                  </button>
+                </div>
+                <div className="flex gap-4 text-xs flex-wrap">
+                  <span style={sub}>Prêté: <strong style={{ color: 'var(--c-text-h)' }}>{formatAmount(pkg.amount)}</strong></span>
+                  <span className="text-red-400">Intérêt: −{formatAmount(interest)}</span>
+                  <span className="text-amber-400 font-bold">Reçoit: {formatAmount(received)}</span>
+                  <span className="text-indigo-400">Rembourse: {formatAmount(pkg.amount)} sur {pkg.months * 31}j</span>
+                  <span style={sub}>≈ {formatAmount(daily)}/jour</span>
+                </div>
               </div>
-              <div className="flex-1">
-                <label className="text-xs font-medium" style={sub}>Intérêt (%)</label>
-                <input type="number" min={0} max={100} step={0.5} value={tier.interestPct}
-                  onChange={e => updateTier(i, 'interestPct', +e.target.value)}
-                  className="mt-1 w-full rounded-lg px-3 py-1.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-400"
-                  style={inputStyle}
-                />
-              </div>
-              <div className="flex-1 pt-4 space-y-0.5">
-                <p className="text-xs" style={sub}>Sur {formatAmount(form.maxLoanAmount)}</p>
-                <p className="text-xs text-red-400">
-                  − {formatAmount(Math.round(form.maxLoanAmount * tier.interestPct / 100))} intérêt
-                </p>
-                <p className="text-sm font-bold text-amber-400">
-                  Reçoit {formatAmount(Math.round(form.maxLoanAmount * (1 - tier.interestPct / 100)))}
-                </p>
-                <p className="text-xs text-indigo-400">
-                  Rembourse {formatAmount(form.maxLoanAmount)} · {tier.months * 31}j
-                </p>
-                <p className="text-xs" style={sub}>
-                  ≈ {formatAmount(Math.ceil(form.maxLoanAmount / (tier.months * 31)))}/jour
-                </p>
-              </div>
-              <button onClick={() => removeTier(i)} disabled={form.tiers.length <= 1}
-                className="mt-4 text-red-400 hover:text-red-500 disabled:opacity-30">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3,6 5,6 21,6"/><path d="M19,6l-1,14H6L5,6"/><path d="M10,11v6M14,11v6"/></svg>
-              </button>
-            </div>
-          ))}
+            )
+          })}
         </div>
       </div>
 
@@ -298,21 +286,17 @@ export function CreditConfigPage() {
             <span className="text-indigo-400 mt-0.5">✓</span>
             Un client doit contribuer depuis <strong>{form.minContributingMonths} mois</strong> avant d'être éligible.
           </li>
-          <li className="flex items-start gap-2">
-            <span className="text-indigo-400 mt-0.5">✓</span>
-            Le montant maximum d'un prêt est <strong>{formatAmount(form.maxLoanAmount)}</strong>.
-          </li>
-          {form.tiers.map((t, i) => {
-            const interest = Math.round(form.maxLoanAmount * t.interestPct / 100)
-            const received = form.maxLoanAmount - interest
-            const daily = Math.ceil(form.maxLoanAmount / (t.months * 31))
+          {form.tiers.map((p, i) => {
+            const interest = Math.round(p.amount * p.interestPct / 100)
+            const received = p.amount - interest
+            const daily = Math.ceil(p.amount / (p.months * 31))
             return (
               <li key={i} className="flex items-start gap-2">
                 <span className="text-indigo-400 mt-0.5">✓</span>
                 <span>
-                  Prêt sur <strong>{t.months} mois ({t.months * 31} jours)</strong> à <strong>{t.interestPct}%</strong> —
+                  Package <strong>{formatAmount(p.amount)}</strong> sur <strong>{p.months} mois</strong> à <strong>{p.interestPct}%</strong> —
                   {' '}le client reçoit <strong className="text-amber-500">{formatAmount(received)}</strong>,
-                  {' '}rembourse <strong>{formatAmount(form.maxLoanAmount)}</strong>
+                  {' '}rembourse <strong>{formatAmount(p.amount)}</strong>
                   {' '}à <strong>{formatAmount(daily)}/jour</strong>.
                 </span>
               </li>
