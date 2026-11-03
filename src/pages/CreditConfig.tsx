@@ -117,7 +117,17 @@ export function CreditConfigPage() {
   const [saved, setSaved] = useState(false)
   const [saveErr, setSaveErr] = useState('')
 
-  useEffect(() => { if (data) setForm(data) }, [data])
+  useEffect(() => {
+    if (!data) return
+    setForm({
+      ...data,
+      tiers: (data.tiers ?? []).map(p => ({
+        ...p,
+        minContributingMonths: p.minContributingMonths ?? 1,
+        dailyAmount: p.dailyAmount ?? Math.ceil(p.amount / (p.months * 31)),
+      })),
+    })
+  }, [data])
 
   const save = useMutation({
     mutationFn: (otpCode: string) => api.put('/credit/config', { ...form, otp_code: otpCode }),
