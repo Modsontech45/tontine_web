@@ -102,7 +102,7 @@ export function DashboardLayout() {
           >
             <div>
               <h1 className="text-xl font-bold" style={{ color: 'var(--c-text-h)' }}>
-                Bonjour, {firstName} <span>👋</span>
+                Bonjour, {firstName}
               </h1>
               <p className="text-xs mt-0.5 capitalize" style={{ color: 'var(--c-text-m)' }}>{today}</p>
             </div>

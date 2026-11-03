@@ -74,7 +74,7 @@ function DueTimer({ dueDate }: { dueDate: string | null }) {
 
   return (
     <span className={`font-mono text-xs tabular-nums ${color}`}>
-      {overdue ? '⚠ En retard ' : ''}{parts}
+      {overdue && <svg className="inline mr-1 -mt-0.5" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>}{overdue ? 'En retard ' : ''}{parts}
     </span>
   )
 }
@@ -138,8 +138,10 @@ function RepayModal({ loan, onClose }: { loan: ActiveLoan; onClose: () => void }
               return (
                 <div key={r.id} className={`flex items-center justify-between text-xs rounded-lg px-3 py-2 ${isPending ? 'bg-amber-50' : isRejected ? 'bg-red-50' : 'bg-green-50'}`}>
                   <div>
-                    <span className={`font-semibold ${isPending ? 'text-amber-700' : isRejected ? 'text-red-600 line-through' : 'text-green-700'}`}>
-                      {isPending ? '⏳ ' : isRejected ? '✕ ' : ''}{formatAmount(r.amount)}
+                    <span className={`font-semibold flex items-center gap-1 ${isPending ? 'text-amber-700' : isRejected ? 'text-red-600 line-through' : 'text-green-700'}`}>
+                      {isPending && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 22h14M5 2h14M17 22v-4.172a2 2 0 00-.586-1.414L12 12l-4.414 4.414A2 2 0 007 17.828V22M7 2v4.172a2 2 0 00.586 1.414L12 12l4.414-4.414A2 2 0 0017 6.172V2"/></svg>}
+                      {isRejected && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>}
+                      {formatAmount(r.amount)}
                     </span>
                     {r.collector && <span className="ml-2 text-gray-400">par {r.collector.firstName} {r.collector.lastName}</span>}
                   </div>
@@ -172,7 +174,7 @@ function RepayModal({ loan, onClose }: { loan: ActiveLoan; onClose: () => void }
         ) : change !== null ? (
           <div className="text-center space-y-4">
             <div className="w-16 h-16 mx-auto rounded-full bg-green-100 flex items-center justify-center">
-              <span className="text-3xl">💰</span>
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="1.8"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>
             </div>
             <div>
               <p className="text-lg font-bold text-gray-900">Paiement enregistré</p>
@@ -217,7 +219,7 @@ function RepayModal({ loan, onClose }: { loan: ActiveLoan; onClose: () => void }
                     min={1} placeholder="Montant reçu du client"
                     className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
                   {effectiveAmount > loan.remainingAmount && (
-                    <p className="text-xs text-amber-600 mt-1">⚠ Dépassement de {formatAmount(effectiveAmount - loan.remainingAmount)} → monnaie à rendre</p>
+                    <p className="text-xs text-amber-600 mt-1 flex items-center gap-1"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Dépassement de {formatAmount(effectiveAmount - loan.remainingAmount)} → monnaie à rendre</p>
                   )}
                 </div>
               )}
@@ -300,14 +302,14 @@ function PendingRepaymentInbox() {
                 disabled={confirm.isPending}
                 className="px-4 py-1.5 rounded-lg text-xs font-bold bg-green-600 text-white hover:bg-green-700 disabled:opacity-50"
               >
-                ✓ Confirmer
+                <svg className="inline mr-1" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20,6 9,17 4,12"/></svg>Confirmer
               </button>
               <button
                 onClick={() => reject.mutate(p.id)}
                 disabled={reject.isPending}
                 className="px-4 py-1.5 rounded-lg text-xs font-bold bg-red-500 text-white hover:bg-red-600 disabled:opacity-50"
               >
-                ✕ Rejeter
+                <svg className="inline mr-1" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>Rejeter
               </button>
             </div>
           </div>
@@ -354,7 +356,7 @@ export function ActiveLoansPage() {
       ) : loans.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-24 gap-3"
           style={{ background: 'var(--c-card)', border: '1px solid var(--c-card-border)', borderRadius: 16 }}>
-          <span className="text-4xl">🎉</span>
+          <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22,4 12,14.01 9,11.01"/></svg></div>
           <p className="font-semibold" style={{ color: 'var(--c-text-h)' }}>Aucun prêt actif</p>
           <p className="text-sm" style={{ color: 'var(--c-text-s)' }}>Tous les prêts ont été remboursés</p>
         </div>
@@ -432,7 +434,8 @@ export function ActiveLoansPage() {
                       return (
                         <span key={r.id} className="px-3 py-1 text-xs rounded-full font-semibold"
                           style={{ background: styles.bg, color: styles.color }}>
-                          {r.status === 'PENDING' ? '⏳ ' : r.status === 'REJECTED' ? '✕ ' : ''}
+                          {r.status === 'PENDING' && <svg className="inline mr-0.5 -mt-0.5" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 22h14M5 2h14M17 22v-4.172a2 2 0 00-.586-1.414L12 12l-4.414 4.414A2 2 0 007 17.828V22M7 2v4.172a2 2 0 00.586 1.414L12 12l4.414-4.414A2 2 0 0017 6.172V2"/></svg>}
+                          {r.status === 'REJECTED' && <svg className="inline mr-0.5 -mt-0.5" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>}
                           {formatAmount(r.amount)} · {new Date(r.recordedAt).toLocaleDateString('fr-FR')}
                           {r.collector && ` · ${r.collector.firstName}`}
                         </span>

@@ -287,7 +287,7 @@ export function CreditConfigPage() {
             const excess = totalCollected - p.amount
             return (
               <li key={i} className="flex items-start gap-2">
-                <span className="text-indigo-400 mt-0.5">✓</span>
+                <svg className="flex-shrink-0 mt-0.5" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#818cf8" strokeWidth="3"><polyline points="20,6 9,17 4,12"/></svg>
                 <span>
                   Package <strong>{formatAmount(p.amount)}</strong> · <strong>{p.months} mois</strong> · <strong>{p.interestPct}%</strong> —
                   {' '}reçoit <strong className="text-amber-500">{formatAmount(received)}</strong>,
@@ -315,7 +315,7 @@ export function CreditConfigPage() {
           </svg>
           {save.isPending ? 'Enregistrement…' : 'Enregistrer la configuration'}
         </button>
-        {saved && <span className="text-sm text-emerald-500 font-medium">✓ Configuration enregistrée</span>}
+        {saved && <span className="text-sm text-emerald-500 font-medium flex items-center gap-1"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20,6 9,17 4,12"/></svg>Configuration enregistrée</span>}
         {saveErr && <span className="text-sm text-red-400">{saveErr}</span>}
       </div>
     </div>

@@ -131,7 +131,7 @@ export function ForgotPasswordPage() {
 
         {step === 'done' && (
           <div className="space-y-4 text-center">
-            <div className="text-green-600 text-4xl">✓</div>
+            <div className="flex justify-center"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="9,12 11,14 15,10"/></svg></div>
             <p className="text-gray-700 font-medium">Mot de passe réinitialisé avec succès.</p>
             <a
               href="/login"

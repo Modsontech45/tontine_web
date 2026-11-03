@@ -142,16 +142,16 @@ export function ActivityPage() {
                         <div>
                           <p className="font-semibold text-gray-900 text-sm">{d.user.firstName} {d.user.lastName}</p>
                           <p className="text-xs text-gray-500">{d.user.phone}</p>
-                          <p className="text-xs text-gray-400 mt-1">📲 {d.model} · {d.androidId}</p>
+                          <p className="text-xs text-gray-400 mt-1 flex items-center gap-1"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>{d.model} · {d.androidId}</p>
                           {d.lastLoginAt && <p className="text-xs text-gray-400">{timeAgo(d.lastLoginAt)}</p>}
                           {d.lastLoginLat && d.lastLoginLng && (
                             <a href={`https://www.google.com/maps?q=${d.lastLoginLat},${d.lastLoginLng}`} target="_blank" rel="noopener noreferrer"
-                               className="text-xs text-blue-600 hover:underline">📍 Localisation</a>
+                               className="text-xs text-blue-600 hover:underline flex items-center gap-0.5"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>Localisation</a>
                           )}
                         </div>
                         <button onClick={() => approve.mutate(d.id)} disabled={approve.isPending}
                           className="px-3 py-1.5 text-xs font-bold bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 flex-shrink-0">
-                          ✓ Approuver
+                          <svg className="inline mr-1" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20,6 9,17 4,12"/></svg>Approuver
                         </button>
                       </div>
                     </div>
@@ -178,7 +178,7 @@ export function ActivityPage() {
                     {d.lastLoginLat && d.lastLoginLng && (
                       <a href={`https://www.google.com/maps?q=${d.lastLoginLat},${d.lastLoginLng}`}
                          target="_blank" rel="noopener noreferrer"
-                         className="text-gray-400 hover:text-blue-600 text-xs flex-shrink-0">📍</a>
+                         className="text-gray-400 hover:text-blue-600 text-xs flex-shrink-0"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg></a>
                     )}
                   </div>
                 ))}

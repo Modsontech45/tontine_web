@@ -298,7 +298,7 @@ export function CaissePage() {
                       <td className="px-4 py-3 font-semibold">{formatAmount(h.receivedAmount ?? 0)}</td>
                       <td className="px-4 py-3">
                         <span className={`font-semibold ${diff === 0 ? 'text-green-600' : diff < 0 ? 'text-red-600' : 'text-orange-600'}`}>
-                          {diff === 0 ? '✓ OK' : `${diff > 0 ? '+' : ''}${formatAmount(diff)}`}
+                          {diff === 0 ? <span className="flex items-center gap-0.5"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20,6 9,17 4,12"/></svg>OK</span> : `${diff > 0 ? '+' : ''}${formatAmount(diff)}`}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-gray-600 text-xs">{h.cashier?.firstName} {h.cashier?.lastName}</td>

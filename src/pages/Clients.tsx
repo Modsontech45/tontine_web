@@ -89,7 +89,7 @@ function CreateClientModal({ onClose, onCreated }: { onClose: () => void; onCrea
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">Position GPS *</label>
             <button onClick={captureGps} disabled={gpsStatus === 'loading'} className="px-3 py-1.5 text-sm border rounded hover:bg-gray-50 disabled:opacity-50">
-              {gpsStatus === 'loading' ? 'Acquisition...' : gpsStatus === 'ok' ? `✓ ${gps!.lat.toFixed(4)}, ${gps!.lng.toFixed(4)} (±${gps!.acc.toFixed(0)} m)` : 'Capturer GPS'}
+              {gpsStatus === 'loading' ? 'Acquisition...' : gpsStatus === 'ok' ? <span className="flex items-center gap-1"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20,6 9,17 4,12"/></svg>{gps!.lat.toFixed(4)}, {gps!.lng.toFixed(4)} (±{gps!.acc.toFixed(0)} m)</span> : 'Capturer GPS'}
             </button>
             {gpsStatus === 'error' && <p className="text-xs text-red-500 mt-1">GPS indisponible</p>}
           </div>
