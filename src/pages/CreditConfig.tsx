@@ -121,6 +121,9 @@ export function CreditConfigPage() {
   const [showOtp, setShowOtp] = useState(false)
   const [saved, setSaved] = useState(false)
   const [saveErr, setSaveErr] = useState('')
+  const [editingIdx, setEditingIdx] = useState<number | null>(null)
+  const [showAddForm, setShowAddForm] = useState(false)
+  const [newPkg, setNewPkg] = useState<CreditPackage>({ amount: 50000, minContributingMonths: 1, dailyAmount: Math.ceil(50000 / 31) })
 
   useEffect(() => {
     if (!data) return
@@ -153,7 +156,9 @@ export function CreditConfigPage() {
     setForm(f => { const t = [...f.tiers]; t[i] = { ...t[i], [field]: val }; return { ...f, tiers: t } })
   }
   function addPkg() {
-    setForm(f => ({ ...f, tiers: [...f.tiers, { amount: 50000, minContributingMonths: 1, dailyAmount: Math.ceil(50000 / 31) }] }))
+    setForm(f => ({ ...f, tiers: [...f.tiers, newPkg] }))
+    setNewPkg({ amount: 50000, minContributingMonths: 1, dailyAmount: Math.ceil(50000 / 31) })
+    setShowAddForm(false)
   }
   function removePkg(i: number) {
     setForm(f => ({ ...f, tiers: f.tiers.filter((_, j) => j !== i) }))
@@ -247,79 +252,159 @@ export function CreditConfigPage() {
       <div className="rounded-2xl shadow-sm p-6 space-y-4" style={card}>
         <div className="flex items-center justify-between">
           <h3 className="font-bold flex items-center gap-2" style={heading}>
-            <span className="w-6 h-6 rounded-full bg-amber-100 text-amber-700 text-xs font-bold flex items-center justify-center">1</span>
+            <span className="w-6 h-6 rounded-full bg-amber-100 text-amber-700 text-xs font-bold flex items-center justify-center">2</span>
             Packages de crédit
           </h3>
-          <button onClick={addPkg} disabled={form.tiers.length >= 12}
-            className="text-xs font-semibold px-3 py-1.5 rounded-lg text-indigo-400 hover:opacity-80 disabled:opacity-40"
-            style={{ background: 'var(--c-input-bg)', border: '1px solid var(--c-input-border)' }}>
-            + Ajouter un package
-          </button>
+          {!showAddForm && (
+            <button
+              onClick={() => { setShowAddForm(true); setEditingIdx(null) }}
+              disabled={form.tiers.length >= 12}
+              className="text-xs font-semibold px-3 py-1.5 rounded-lg text-indigo-400 hover:opacity-80 disabled:opacity-40"
+              style={{ background: 'var(--c-input-bg)', border: '1px solid var(--c-input-border)' }}>
+              + Ajouter un package
+            </button>
+          )}
         </div>
 
-        <p className="text-xs" style={sub}>Chaque package définit un montant et les conditions d'éligibilité. Le client choisit ensuite la durée — le taux est appliqué selon les règles définies ci-dessus.</p>
+        <p className="text-xs" style={sub}>Chaque package définit un montant et les conditions d'éligibilité. Le client choisit ensuite la durée — le taux est appliqué selon les règles ci-dessus.</p>
 
+        {/* Package cards */}
         <div className="space-y-3">
           {form.tiers.map((pkg, i) => {
+            const isEditing = editingIdx === i
+            const shortReceived = pkg.amount - Math.round(pkg.amount * form.interestShortPct / 100)
+            const longReceived  = pkg.amount - Math.round(pkg.amount * form.interestLongPct / 100)
             const daily = Math.ceil(pkg.amount / 31)
-            return (
-              <div key={i} className="p-4 rounded-xl" style={{ background: 'var(--c-input-bg)', border: '1px solid var(--c-card-border)' }}>
-                <div className="grid grid-cols-2 gap-3 mb-3 [&_.col-span-2]:col-span-2">
+
+            if (isEditing) return (
+              <div key={i} className="p-4 rounded-xl" style={{ background: 'var(--c-input-bg)', border: '2px solid #6366f1' }}>
+                <p className="text-xs font-bold mb-3" style={{ color: '#818cf8' }}>Modifier le package</p>
+                <div className="grid grid-cols-2 gap-3 mb-3">
                   <div>
                     <label className="text-xs font-medium" style={sub}>Montant (FCFA)</label>
                     <input type="number" min={1000} step={5000} value={pkg.amount}
                       onChange={e => updatePkg(i, 'amount', +e.target.value)}
                       className="mt-1 w-full rounded-lg px-3 py-1.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-400"
-                      style={inputStyle}
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs font-medium" style={sub}>Taux (selon règles)</label>
-                    <div className="mt-1 w-full rounded-lg px-3 py-1.5 text-sm font-bold" style={{ ...inputStyle, opacity: 0.7 }}>
-                      {form.interestShortPct}% · {form.interestLongPct}%
-                    </div>
+                      style={inputStyle} />
                   </div>
                   <div>
                     <label className="text-xs font-medium" style={sub}>Mois de contribution requis</label>
                     <input type="number" min={1} max={24} value={pkg.minContributingMonths}
                       onChange={e => updatePkg(i, 'minContributingMonths', +e.target.value)}
                       className="mt-1 w-full rounded-lg px-3 py-1.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-400"
-                      style={inputStyle}
-                    />
+                      style={inputStyle} />
                   </div>
                   <div className="col-span-2">
                     <label className="text-xs font-medium" style={sub}>Versement journalier (FCFA)</label>
-                    <p className="text-xs mb-1" style={{ color: 'var(--c-text-m)' }}>
-                      Minimum calculé: {formatAmount(daily)} F — arrondir à la hausse pour collecte simple
-                    </p>
+                    <p className="text-xs mb-1" style={{ color: 'var(--c-text-m)' }}>Minimum calculé: {formatAmount(daily)} F</p>
                     <input type="number" min={1} step={50} value={pkg.dailyAmount}
                       onChange={e => updatePkg(i, 'dailyAmount', +e.target.value)}
                       className="mt-0 w-full rounded-lg px-3 py-1.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-400"
-                      style={inputStyle}
-                    />
-                    {pkg.dailyAmount * 31 > pkg.amount && (
-                      <p className="text-xs mt-1 text-indigo-400">
-                        Excédent → contribution: {formatAmount(pkg.dailyAmount * 31 - pkg.amount)} F sur 31j
-                      </p>
-                    )}
+                      style={inputStyle} />
                   </div>
                 </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex gap-4 text-xs flex-wrap">
-                    <span className="text-green-400">1 mois ({form.interestShortPct}%) → Reçoit {formatAmount(pkg.amount - Math.round(pkg.amount * form.interestShortPct / 100))} F</span>
-                    <span className="text-amber-400">&gt;1 mois ({form.interestLongPct}%) → Reçoit {formatAmount(pkg.amount - Math.round(pkg.amount * form.interestLongPct / 100))} F</span>
-                    <span className="text-indigo-400">Rembourse: {formatAmount(pkg.amount)} dans les 2 cas</span>
-                    <span className="font-semibold" style={{ color: 'var(--c-text-h)' }}>{formatAmount(pkg.dailyAmount)}/jour</span>
+                <div className="flex gap-2">
+                  <button onClick={() => setEditingIdx(null)}
+                    className="flex-1 py-2 rounded-lg text-sm font-semibold text-white"
+                    style={{ background: 'linear-gradient(135deg,#6366f1,#8b5cf6)' }}>
+                    Valider
+                  </button>
+                  <button onClick={() => setEditingIdx(null)}
+                    className="px-4 py-2 rounded-lg text-sm font-medium"
+                    style={{ background: 'var(--c-card)', border: '1px solid var(--c-card-border)', color: 'var(--c-text-s)' }}>
+                    Annuler
+                  </button>
+                </div>
+              </div>
+            )
+
+            return (
+              <div key={i} className="flex items-center gap-3 p-4 rounded-xl" style={{ background: 'var(--c-input-bg)', border: '1px solid var(--c-card-border)' }}>
+                {/* Amount badge */}
+                <div className="w-14 h-14 rounded-xl flex flex-col items-center justify-center flex-shrink-0"
+                  style={{ background: 'linear-gradient(135deg,#1e1b4b,#312e81)' }}>
+                  <span className="text-white font-bold text-sm leading-tight">{formatAmount(pkg.amount)}</span>
+                  <span className="text-indigo-300 text-[10px]">FCFA</span>
+                </div>
+                {/* Info */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-xs">
+                    <span style={sub}>Éligible après <strong style={heading}>{pkg.minContributingMonths} mois</strong></span>
+                    <span style={sub}><strong style={heading}>{formatAmount(pkg.dailyAmount)}</strong>/jour</span>
                   </div>
+                  <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs mt-1">
+                    <span className="text-green-500">1 mois → reçoit {formatAmount(shortReceived)} F</span>
+                    <span className="text-amber-500">+1 mois → reçoit {formatAmount(longReceived)} F</span>
+                  </div>
+                </div>
+                {/* Actions */}
+                <div className="flex gap-2 flex-shrink-0">
+                  <button onClick={() => { setEditingIdx(i); setShowAddForm(false) }}
+                    className="p-2 rounded-lg hover:opacity-80"
+                    style={{ background: 'var(--c-card)', border: '1px solid var(--c-card-border)', color: '#818cf8' }}
+                    title="Modifier">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                    </svg>
+                  </button>
                   <button onClick={() => removePkg(i)} disabled={form.tiers.length <= 1}
-                    className="text-red-400 hover:text-red-500 disabled:opacity-30 flex-shrink-0 ml-3">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3,6 5,6 21,6"/><path d="M19,6l-1,14H6L5,6"/><path d="M10,11v6M14,11v6"/></svg>
+                    className="p-2 rounded-lg hover:opacity-80 disabled:opacity-30"
+                    style={{ background: 'var(--c-card)', border: '1px solid var(--c-card-border)', color: '#f87171' }}
+                    title="Supprimer">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <polyline points="3,6 5,6 21,6"/><path d="M19,6l-1,14H6L5,6"/>
+                      <path d="M10,11v6M14,11v6"/>
+                    </svg>
                   </button>
                 </div>
               </div>
             )
           })}
         </div>
+
+        {/* Add package form */}
+        {showAddForm && (
+          <div className="p-4 rounded-xl" style={{ background: 'var(--c-input-bg)', border: '2px solid #6366f1' }}>
+            <p className="text-xs font-bold mb-3" style={{ color: '#818cf8' }}>Nouveau package</p>
+            <div className="grid grid-cols-2 gap-3 mb-3">
+              <div>
+                <label className="text-xs font-medium" style={sub}>Montant (FCFA)</label>
+                <input type="number" min={1000} step={5000} value={newPkg.amount}
+                  onChange={e => setNewPkg(p => ({ ...p, amount: +e.target.value, dailyAmount: Math.ceil(+e.target.value / 31) }))}
+                  className="mt-1 w-full rounded-lg px-3 py-1.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                  style={inputStyle} />
+              </div>
+              <div>
+                <label className="text-xs font-medium" style={sub}>Mois de contribution requis</label>
+                <input type="number" min={1} max={24} value={newPkg.minContributingMonths}
+                  onChange={e => setNewPkg(p => ({ ...p, minContributingMonths: +e.target.value }))}
+                  className="mt-1 w-full rounded-lg px-3 py-1.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                  style={inputStyle} />
+              </div>
+              <div className="col-span-2">
+                <label className="text-xs font-medium" style={sub}>Versement journalier (FCFA)</label>
+                <p className="text-xs mb-1" style={{ color: 'var(--c-text-m)' }}>Minimum calculé: {formatAmount(Math.ceil(newPkg.amount / 31))} F</p>
+                <input type="number" min={1} step={50} value={newPkg.dailyAmount}
+                  onChange={e => setNewPkg(p => ({ ...p, dailyAmount: +e.target.value }))}
+                  className="mt-0 w-full rounded-lg px-3 py-1.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                  style={inputStyle} />
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={addPkg}
+                className="flex-1 py-2 rounded-lg text-sm font-semibold text-white"
+                style={{ background: 'linear-gradient(135deg,#6366f1,#8b5cf6)' }}>
+                Ajouter
+              </button>
+              <button onClick={() => setShowAddForm(false)}
+                className="px-4 py-2 rounded-lg text-sm font-medium"
+                style={{ background: 'var(--c-card)', border: '1px solid var(--c-card-border)', color: 'var(--c-text-s)' }}>
+                Annuler
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Preview */}
