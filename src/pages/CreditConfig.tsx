@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../lib/api'
 import { formatAmount } from '../lib/format'
 
-interface CreditPackage { amount: number; months: number; minContributingMonths: number; dailyAmount: number }
+interface CreditPackage { amount: number; minContributingMonths: number; dailyAmount: number }
 interface Config {
   tiers: CreditPackage[]
   isEnabled: boolean
@@ -110,9 +110,9 @@ export function CreditConfigPage() {
 
   const [form, setForm] = useState<Config>({
     tiers: [
-      { amount: 100000, months: 1, minContributingMonths: 1, dailyAmount: Math.ceil(100000 / 31) },
-      { amount: 35000,  months: 1, minContributingMonths: 1, dailyAmount: Math.ceil(35000 / 31) },
-      { amount: 20000,  months: 1, minContributingMonths: 1, dailyAmount: Math.ceil(20000 / 31) },
+      { amount: 100000, minContributingMonths: 1, dailyAmount: Math.ceil(100000 / 31) },
+      { amount: 35000,  minContributingMonths: 1, dailyAmount: Math.ceil(35000 / 31) },
+      { amount: 20000,  minContributingMonths: 1, dailyAmount: Math.ceil(20000 / 31) },
     ],
     isEnabled: true,
     interestShortPct: 5,
@@ -131,7 +131,7 @@ export function CreditConfigPage() {
       tiers: (data.tiers ?? []).map(p => ({
         ...p,
         minContributingMonths: p.minContributingMonths ?? 1,
-        dailyAmount: p.dailyAmount ?? Math.ceil(p.amount / (p.months * 31)),
+        dailyAmount: p.dailyAmount ?? Math.ceil(p.amount / 31),
       })),
     })
   }, [data])
@@ -153,7 +153,7 @@ export function CreditConfigPage() {
     setForm(f => { const t = [...f.tiers]; t[i] = { ...t[i], [field]: val }; return { ...f, tiers: t } })
   }
   function addPkg() {
-    setForm(f => ({ ...f, tiers: [...f.tiers, { amount: 50000, months: 1, minContributingMonths: 1, dailyAmount: Math.ceil(50000 / 31) }] }))
+    setForm(f => ({ ...f, tiers: [...f.tiers, { amount: 50000, minContributingMonths: 1, dailyAmount: Math.ceil(50000 / 31) }] }))
   }
   function removePkg(i: number) {
     setForm(f => ({ ...f, tiers: f.tiers.filter((_, j) => j !== i) }))
@@ -261,7 +261,7 @@ export function CreditConfigPage() {
 
         <div className="space-y-3">
           {form.tiers.map((pkg, i) => {
-            const daily = Math.ceil(pkg.amount / (pkg.months * 31))
+            const daily = Math.ceil(pkg.amount / 31)
             return (
               <div key={i} className="p-4 rounded-xl" style={{ background: 'var(--c-input-bg)', border: '1px solid var(--c-card-border)' }}>
                 <div className="grid grid-cols-2 gap-3 mb-3 [&_.col-span-2]:col-span-2">
@@ -269,14 +269,6 @@ export function CreditConfigPage() {
                     <label className="text-xs font-medium" style={sub}>Montant (FCFA)</label>
                     <input type="number" min={1000} step={5000} value={pkg.amount}
                       onChange={e => updatePkg(i, 'amount', +e.target.value)}
-                      className="mt-1 w-full rounded-lg px-3 py-1.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-400"
-                      style={inputStyle}
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs font-medium" style={sub}>Durée étendue (mois)</label>
-                    <input type="number" min={1} max={24} value={pkg.months}
-                      onChange={e => updatePkg(i, 'months', +e.target.value)}
                       className="mt-1 w-full rounded-lg px-3 py-1.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-400"
                       style={inputStyle}
                     />
@@ -305,9 +297,9 @@ export function CreditConfigPage() {
                       className="mt-0 w-full rounded-lg px-3 py-1.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-400"
                       style={inputStyle}
                     />
-                    {pkg.dailyAmount * pkg.months * 31 > pkg.amount && (
+                    {pkg.dailyAmount * 31 > pkg.amount && (
                       <p className="text-xs mt-1 text-indigo-400">
-                        Excédent → contribution: {formatAmount(pkg.dailyAmount * pkg.months * 31 - pkg.amount)} F sur {pkg.months * 31}j
+                        Excédent → contribution: {formatAmount(pkg.dailyAmount * 31 - pkg.amount)} F sur 31j
                       </p>
                     )}
                   </div>
