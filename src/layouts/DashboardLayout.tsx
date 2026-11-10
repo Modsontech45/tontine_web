@@ -5,7 +5,7 @@ import { ROLE_LABELS } from '../lib/format'
 import { api } from '../lib/api'
 import { useTheme } from '../contexts/ThemeContext'
 
-type NavItem = { to: string; label: string; exact?: boolean; icon: React.FC<{active?: boolean}>; roles?: string[] }
+type NavItem = { to: string; label: string; exact?: boolean; icon: React.FC<{active?: boolean}>; roles?: string[]; badge?: number }
 
 const MENU: NavItem[] = [
   { to: '/', label: 'Tableau de bord', exact: true, icon: IconDashboard },
@@ -15,6 +15,7 @@ const MENU: NavItem[] = [
   { to: '/stickers', label: 'Carnets / Stickers', icon: IconStickers },
   { to: '/credit', label: 'Demandes de crédit', icon: IconCredit, roles: ['SUPER_ADMIN', 'ADMIN', 'CONTROLLER'] },
   { to: '/active-loans', label: 'Prêts en cours', icon: IconActiveLoans, roles: ['SUPER_ADMIN', 'ADMIN', 'CONTROLLER', 'CASHIER'] },
+  { to: '/pending-repayments', label: 'Remboursements terrain', icon: IconPendingRepay, roles: ['SUPER_ADMIN', 'ADMIN', 'CASHIER'] },
 ]
 
 const GENERAL: NavItem[] = [
@@ -55,6 +56,14 @@ export function DashboardLayout() {
   })
   const total: number = notifCount?.total ?? 0
 
+  const { data: pendingRepayData } = useQuery({
+    queryKey: ['pending-repayments-count'],
+    queryFn: () => api.get('/credit/pending-repayments').then(r => r.data),
+    refetchInterval: 30_000,
+    enabled: ['SUPER_ADMIN', 'ADMIN', 'CASHIER'].includes(role),
+  })
+  const pendingRepayCount: number = pendingRepayData?.data?.length ?? 0
+
   return (
     <div className={theme === 'dark' ? 'dark' : ''} style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
       <div className="flex h-screen" style={{ background: 'var(--c-app)' }}>
@@ -74,7 +83,9 @@ export function DashboardLayout() {
 
           {/* Nav */}
           <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-6">
-            <NavSection label="MENU" items={MENU.filter(i => !i.roles || i.roles.includes(role))} />
+            <NavSection label="MENU" items={MENU.filter(i => !i.roles || i.roles.includes(role)).map(i =>
+              i.to === '/pending-repayments' ? { ...i, badge: pendingRepayCount } : i
+            )} />
             <NavSection label="GÉNÉRAL" items={GENERAL.filter(i => !i.roles || i.roles.includes(role))} />
           </nav>
 
@@ -195,7 +206,12 @@ function NavSection({ label, items }: { label: string; items: NavItem[] }) {
               >
                 <item.icon active={isActive} />
                 {item.label}
-                {isActive && (
+                {(item.badge ?? 0) > 0 && (
+                  <span className="ml-auto min-w-[20px] h-5 px-1 rounded-full bg-amber-400 text-gray-900 text-[10px] font-bold flex items-center justify-center flex-shrink-0">
+                    {(item.badge ?? 0) > 99 ? '99+' : item.badge}
+                  </span>
+                )}
+                {isActive && (item.badge ?? 0) === 0 && (
                   <span className="ml-auto w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: '#D4A017' }} />
                 )}
               </div>
@@ -253,6 +269,9 @@ function IconActiveLoans({ active }: { active?: boolean }) {
 }
 function IconCreditConfig({ active }: { active?: boolean }) {
   return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={active ? '#D4A017' : 'currentColor'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/><line x1="7" y1="10" x2="7" y2="10.01"/><line x1="12" y1="8" x2="12" y2="13"/></svg>
+}
+function IconPendingRepay({ active }: { active?: boolean }) {
+  return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={active ? '#D4A017' : 'currentColor'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 22h14M5 2h14M17 22v-4.172a2 2 0 00-.586-1.414L12 12l-4.414 4.414A2 2 0 007 17.828V22M7 2v4.172a2 2 0 00.586 1.414L12 12l4.414-4.414A2 2 0 0017 6.172V2"/><circle cx="12" cy="12" r="1" fill="currentColor"/></svg>
 }
 function IconLogout() {
   return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16,17 21,12 16,7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
