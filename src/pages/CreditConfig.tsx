@@ -344,7 +344,7 @@ export function CreditConfigPage() {
                   Package <strong>{formatAmount(p.amount)}</strong> FCFA —{' '}
                   1 mois ({form.interestShortPct}%) → reçoit <strong className="text-green-500">{formatAmount(shortReceived)}</strong>
                   {' '}· +1 mois ({form.interestLongPct}%) → reçoit <strong className="text-amber-500">{formatAmount(longReceived)}</strong>.
-                  {' '}Éligible après <strong>{p.minContributingMonths} mois</strong>. {' '}
+                  {' '}Éligible après <strong>{p.minContributingMonths} mois</strong>.{' '}
                   Versement journalier: <strong>{formatAmount(p.dailyAmount)}/j</strong>.
                 </span>
               </li>
