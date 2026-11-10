@@ -319,44 +319,72 @@ export function CreditConfigPage() {
             )
 
             return (
-              <div key={i} className="flex items-center gap-3 p-4 rounded-xl" style={{ background: 'var(--c-input-bg)', border: '1px solid var(--c-card-border)' }}>
-                {/* Amount badge */}
-                <div className="w-14 h-14 rounded-xl flex flex-col items-center justify-center flex-shrink-0"
-                  style={{ background: 'linear-gradient(135deg,#1e1b4b,#312e81)' }}>
-                  <span className="text-white font-bold text-sm leading-tight">{formatAmount(pkg.amount)}</span>
-                  <span className="text-indigo-300 text-[10px]">FCFA</span>
-                </div>
-                {/* Info */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-xs">
-                    <span style={sub}>Éligible après <strong style={heading}>{pkg.minContributingMonths} mois</strong></span>
-                    <span style={sub}><strong style={heading}>{formatAmount(pkg.dailyAmount)}</strong>/jour</span>
+              <div key={i} className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--c-card-border)' }}>
+                {/* Card header */}
+                <div className="flex items-center justify-between px-5 py-3"
+                  style={{ background: 'linear-gradient(135deg,#1e1b4b 0%,#312e81 100%)' }}>
+                  <div>
+                    <p className="text-white font-bold text-lg leading-none">{formatAmount(pkg.amount)} <span className="text-indigo-300 text-sm font-medium">FCFA</span></p>
+                    <p className="text-indigo-300 text-xs mt-0.5">Package de crédit</p>
                   </div>
-                  <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs mt-1">
-                    <span className="text-green-500">1 mois → reçoit {formatAmount(shortReceived)} F</span>
-                    <span className="text-amber-500">+1 mois → reçoit {formatAmount(longReceived)} F</span>
+                  <div className="flex gap-2">
+                    <button onClick={() => { setEditingIdx(i); setShowAddForm(false) }}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-opacity hover:opacity-80"
+                      style={{ background: 'rgba(255,255,255,0.12)', color: '#c7d2fe' }}>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                      </svg>
+                      Modifier
+                    </button>
+                    <button onClick={() => removePkg(i)} disabled={form.tiers.length <= 1}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-opacity hover:opacity-80 disabled:opacity-30"
+                      style={{ background: 'rgba(248,113,113,0.15)', color: '#fca5a5' }}>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <polyline points="3,6 5,6 21,6"/><path d="M19,6l-1,14H6L5,6"/>
+                        <path d="M10,11v6M14,11v6"/>
+                      </svg>
+                      Supprimer
+                    </button>
                   </div>
                 </div>
-                {/* Actions */}
-                <div className="flex gap-2 flex-shrink-0">
-                  <button onClick={() => { setEditingIdx(i); setShowAddForm(false) }}
-                    className="p-2 rounded-lg hover:opacity-80"
-                    style={{ background: 'var(--c-card)', border: '1px solid var(--c-card-border)', color: '#818cf8' }}
-                    title="Modifier">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                    </svg>
-                  </button>
-                  <button onClick={() => removePkg(i)} disabled={form.tiers.length <= 1}
-                    className="p-2 rounded-lg hover:opacity-80 disabled:opacity-30"
-                    style={{ background: 'var(--c-card)', border: '1px solid var(--c-card-border)', color: '#f87171' }}
-                    title="Supprimer">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <polyline points="3,6 5,6 21,6"/><path d="M19,6l-1,14H6L5,6"/>
-                      <path d="M10,11v6M14,11v6"/>
-                    </svg>
-                  </button>
+                {/* Card body */}
+                <div className="px-5 py-4 space-y-3" style={{ background: 'var(--c-input-bg)' }}>
+                  {/* Stats row */}
+                  <div className="flex gap-3">
+                    <div className="flex-1 flex items-center gap-2 px-3 py-2 rounded-lg" style={{ background: 'var(--c-card)', border: '1px solid var(--c-card-border)' }}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#818cf8" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>
+                      <div>
+                        <p className="text-[10px] font-medium" style={sub}>Cotisation requise</p>
+                        <p className="text-sm font-bold" style={heading}>{pkg.minContributingMonths} mois</p>
+                      </div>
+                    </div>
+                    <div className="flex-1 flex items-center gap-2 px-3 py-2 rounded-lg" style={{ background: 'var(--c-card)', border: '1px solid var(--c-card-border)' }}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#818cf8" strokeWidth="2"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+                      <div>
+                        <p className="text-[10px] font-medium" style={sub}>Versement / jour</p>
+                        <p className="text-sm font-bold" style={heading}>{formatAmount(pkg.dailyAmount)} F</p>
+                      </div>
+                    </div>
+                  </div>
+                  {/* Payout rows */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between px-3 py-2 rounded-lg" style={{ background: 'rgba(16,185,129,0.07)', border: '1px solid rgba(16,185,129,0.2)' }}>
+                      <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0" />
+                        <span className="text-xs font-medium" style={{ color: '#059669' }}>1 mois · {form.interestShortPct}% d'intérêt</span>
+                      </div>
+                      <span className="text-xs font-bold" style={{ color: '#059669' }}>Reçoit {formatAmount(shortReceived)} F</span>
+                    </div>
+                    <div className="flex items-center justify-between px-3 py-2 rounded-lg" style={{ background: 'rgba(245,158,11,0.07)', border: '1px solid rgba(245,158,11,0.2)' }}>
+                      <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-amber-500 flex-shrink-0" />
+                        <span className="text-xs font-medium" style={{ color: '#d97706' }}>Plus d'1 mois · {form.interestLongPct}% d'intérêt</span>
+                      </div>
+                      <span className="text-xs font-bold" style={{ color: '#d97706' }}>Reçoit {formatAmount(longReceived)} F</span>
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-center" style={sub}>Dans les deux cas, le client rembourse <strong>{formatAmount(pkg.amount)} F</strong></p>
                 </div>
               </div>
             )
