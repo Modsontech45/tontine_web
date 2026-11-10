@@ -99,7 +99,7 @@ export function DashboardPage() {
         <KpiCard
           label="Chez les collecteurs"
           value={`${fmtShort(kpis.remainingToday)} F`}
-          sub={kpis.remainingToday === 0 ? 'Tout versé à la caisse ✓' : 'non encore versé à la caisse'}
+          sub={kpis.remainingToday === 0 ? 'Tout versé à la caisse' : 'non encore versé à la caisse'}
           borderColor={kpis.remainingToday > 0 ? '#f97316' : '#10b981'}
           dotColor="bg-orange-500"
           highlight={kpis.remainingToday > 0}
