@@ -4,10 +4,11 @@ import { api } from '../lib/api'
 import { formatAmount } from '../lib/format'
 
 interface CreditPackage { amount: number; months: number; minContributingMonths: number; dailyAmount: number }
-function getInterestPct(months: number): number { return months <= 1 ? 5 : 7.5 }
 interface Config {
   tiers: CreditPackage[]
   isEnabled: boolean
+  interestShortPct: number
+  interestLongPct: number
 }
 
 function OtpModal({ onClose, onVerified }: { onClose: () => void; onVerified: (code: string) => void }) {
@@ -109,10 +110,13 @@ export function CreditConfigPage() {
 
   const [form, setForm] = useState<Config>({
     tiers: [
-      { amount: 50000, months: 1, minContributingMonths: 1, dailyAmount: Math.ceil(50000 / 31) },
-      { amount: 100000, months: 2, minContributingMonths: 3, dailyAmount: Math.ceil(100000 / 62) },
+      { amount: 100000, months: 1, minContributingMonths: 1, dailyAmount: Math.ceil(100000 / 31) },
+      { amount: 35000,  months: 1, minContributingMonths: 1, dailyAmount: Math.ceil(35000 / 31) },
+      { amount: 20000,  months: 1, minContributingMonths: 1, dailyAmount: Math.ceil(20000 / 31) },
     ],
     isEnabled: true,
+    interestShortPct: 5,
+    interestLongPct: 7.5,
   })
   const [showOtp, setShowOtp] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -122,6 +126,8 @@ export function CreditConfigPage() {
     if (!data) return
     setForm({
       ...data,
+      interestShortPct: data.interestShortPct ?? 5,
+      interestLongPct: data.interestLongPct ?? 7.5,
       tiers: (data.tiers ?? []).map(p => ({
         ...p,
         minContributingMonths: p.minContributingMonths ?? 1,
@@ -196,6 +202,47 @@ export function CreditConfigPage() {
         </div>
       </div>
 
+      {/* Interest rules */}
+      <div className="rounded-2xl shadow-sm p-6 space-y-4" style={card}>
+        <div>
+          <h3 className="font-bold flex items-center gap-2" style={heading}>
+            <span className="w-6 h-6 rounded-full bg-amber-100 text-amber-700 text-xs font-bold flex items-center justify-center">%</span>
+            Règles d'intérêt
+          </h3>
+          <p className="text-xs mt-1" style={sub}>Le taux est appliqué automatiquement selon la durée choisie par le client au moment de la demande.</p>
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="p-4 rounded-xl" style={{ background: 'var(--c-input-bg)', border: '1px solid var(--c-card-border)' }}>
+            <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700">≤ 1 mois</span>
+            <div className="flex items-end gap-1 mt-3">
+              <input
+                type="number" min={0.1} max={50} step={0.5}
+                value={form.interestShortPct}
+                onChange={e => setForm(f => ({ ...f, interestShortPct: +e.target.value }))}
+                className="w-20 text-2xl font-bold rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-green-400"
+                style={inputStyle}
+              />
+              <span className="text-xl font-bold mb-1" style={{ color: 'var(--c-text-h)' }}>%</span>
+            </div>
+            <p className="text-xs mt-2" style={sub}>Remboursement en 1 mois</p>
+          </div>
+          <div className="p-4 rounded-xl" style={{ background: 'var(--c-input-bg)', border: '1px solid var(--c-card-border)' }}>
+            <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">&gt; 1 mois</span>
+            <div className="flex items-end gap-1 mt-3">
+              <input
+                type="number" min={0.1} max={50} step={0.5}
+                value={form.interestLongPct}
+                onChange={e => setForm(f => ({ ...f, interestLongPct: +e.target.value }))}
+                className="w-20 text-2xl font-bold rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                style={inputStyle}
+              />
+              <span className="text-xl font-bold mb-1" style={{ color: 'var(--c-text-h)' }}>%</span>
+            </div>
+            <p className="text-xs mt-2" style={sub}>Remboursement en plus d'1 mois</p>
+          </div>
+        </div>
+      </div>
+
       {/* Packages */}
       <div className="rounded-2xl shadow-sm p-6 space-y-4" style={card}>
         <div className="flex items-center justify-between">
@@ -210,19 +257,10 @@ export function CreditConfigPage() {
           </button>
         </div>
 
-        <p className="text-xs" style={sub}>Chaque package définit un montant précis, une durée et des conditions d'éligibilité. Le taux d'intérêt est appliqué automatiquement selon la durée.</p>
-
-        {/* Interest rule banner */}
-        <div className="flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-medium" style={{ background: 'var(--c-input-bg)', border: '1px solid var(--c-card-border)' }}>
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-          <span style={{ color: 'var(--c-text-s)' }}>Taux automatique — <strong style={{ color: 'var(--c-text-h)' }}>1 mois : 5%</strong> · <strong style={{ color: 'var(--c-text-h)' }}>&gt; 1 mois : 7.5%</strong></span>
-        </div>
+        <p className="text-xs" style={sub}>Chaque package définit un montant et les conditions d'éligibilité. Le client choisit ensuite la durée — le taux est appliqué selon les règles définies ci-dessus.</p>
 
         <div className="space-y-3">
           {form.tiers.map((pkg, i) => {
-            const pct = getInterestPct(pkg.months)
-            const interest = Math.round(pkg.amount * pct / 100)
-            const received = pkg.amount - interest
             const daily = Math.ceil(pkg.amount / (pkg.months * 31))
             return (
               <div key={i} className="p-4 rounded-xl" style={{ background: 'var(--c-input-bg)', border: '1px solid var(--c-card-border)' }}>
@@ -236,7 +274,7 @@ export function CreditConfigPage() {
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-medium" style={sub}>Durée (mois)</label>
+                    <label className="text-xs font-medium" style={sub}>Durée étendue (mois)</label>
                     <input type="number" min={1} max={24} value={pkg.months}
                       onChange={e => updatePkg(i, 'months', +e.target.value)}
                       className="mt-1 w-full rounded-lg px-3 py-1.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-400"
@@ -244,9 +282,9 @@ export function CreditConfigPage() {
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-medium" style={sub}>Taux d'intérêt (auto)</label>
+                    <label className="text-xs font-medium" style={sub}>Taux (selon règles)</label>
                     <div className="mt-1 w-full rounded-lg px-3 py-1.5 text-sm font-bold" style={{ ...inputStyle, opacity: 0.7 }}>
-                      {pct}%
+                      {form.interestShortPct}% · {form.interestLongPct}%
                     </div>
                   </div>
                   <div>
@@ -276,9 +314,9 @@ export function CreditConfigPage() {
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="flex gap-4 text-xs flex-wrap">
-                    <span className="text-red-400">Intérêt {pct}%: −{formatAmount(interest)}</span>
-                    <span className="text-amber-400 font-bold">Reçoit: {formatAmount(received)}</span>
-                    <span className="text-indigo-400">Rembourse: {formatAmount(pkg.amount)} sur {pkg.months * 31}j</span>
+                    <span className="text-green-400">1 mois ({form.interestShortPct}%) → Reçoit {formatAmount(pkg.amount - Math.round(pkg.amount * form.interestShortPct / 100))} F</span>
+                    <span className="text-amber-400">&gt;1 mois ({form.interestLongPct}%) → Reçoit {formatAmount(pkg.amount - Math.round(pkg.amount * form.interestLongPct / 100))} F</span>
+                    <span className="text-indigo-400">Rembourse: {formatAmount(pkg.amount)} dans les 2 cas</span>
                     <span className="font-semibold" style={{ color: 'var(--c-text-h)' }}>{formatAmount(pkg.dailyAmount)}/jour</span>
                   </div>
                   <button onClick={() => removePkg(i)} disabled={form.tiers.length <= 1}
@@ -297,21 +335,17 @@ export function CreditConfigPage() {
         <h3 className="font-bold mb-3" style={heading}>Aperçu des règles</h3>
         <ul className="space-y-2 text-sm" style={body}>
           {form.tiers.map((p, i) => {
-            const pct = getInterestPct(p.months)
-            const interest = Math.round(p.amount * pct / 100)
-            const received = p.amount - interest
-            const totalCollected = p.dailyAmount * p.months * 31
-            const excess = totalCollected - p.amount
+            const shortReceived = p.amount - Math.round(p.amount * form.interestShortPct / 100)
+            const longReceived = p.amount - Math.round(p.amount * form.interestLongPct / 100)
             return (
               <li key={i} className="flex items-start gap-2">
                 <svg className="flex-shrink-0 mt-0.5" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#818cf8" strokeWidth="3"><polyline points="20,6 9,17 4,12"/></svg>
                 <span>
-                  Package <strong>{formatAmount(p.amount)}</strong> · <strong>{p.months} mois</strong> · <strong>{pct}%</strong> —
-                  {' '}reçoit <strong className="text-amber-500">{formatAmount(received)}</strong>,
-                  {' '}rembourse <strong>{formatAmount(p.amount)}</strong>
-                  {' '}à <strong>{formatAmount(p.dailyAmount)}/jour</strong>.
-                  {' '}Éligible après <strong>{p.minContributingMonths} mois</strong>.
-                  {excess > 0 && <> Excédent <strong className="text-indigo-400">{formatAmount(excess)} F → contribution</strong>.</>}
+                  Package <strong>{formatAmount(p.amount)}</strong> FCFA —{' '}
+                  1 mois ({form.interestShortPct}%) → reçoit <strong className="text-green-500">{formatAmount(shortReceived)}</strong>
+                  {' '}· +1 mois ({form.interestLongPct}%) → reçoit <strong className="text-amber-500">{formatAmount(longReceived)}</strong>.
+                  {' '}Éligible après <strong>{p.minContributingMonths} mois</strong>. {' '}
+                  Versement journalier: <strong>{formatAmount(p.dailyAmount)}/j</strong>.
                 </span>
               </li>
             )
