@@ -39,20 +39,26 @@ function RejectModal({ repayment, onClose, onConfirm }: {
           </div>
         </div>
         <div>
-          <label className="text-xs font-medium block mb-1" style={{ color: 'var(--c-text-s)' }}>Motif du rejet (optionnel)</label>
+          <label className="text-xs font-medium block mb-1" style={{ color: 'var(--c-text-s)' }}>
+            Motif du rejet <span className="text-red-500">*</span>
+          </label>
           <textarea
             value={note}
             onChange={e => setNote(e.target.value)}
             rows={3}
             placeholder="Ex: Montant incorrect, billet non conforme…"
             className="w-full rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400 resize-none"
-            style={{ background: 'var(--c-input-bg)', border: '1px solid var(--c-input-border)', color: 'var(--c-text-h)' }}
+            style={{ background: 'var(--c-input-bg)', border: `1px solid ${note.trim() ? 'var(--c-input-border)' : '#ef4444'}`, color: 'var(--c-text-h)' }}
           />
+          {!note.trim() && (
+            <p className="text-xs text-red-500 mt-1">Un motif est requis pour rejeter un remboursement.</p>
+          )}
         </div>
         <div className="flex gap-2">
           <button
             onClick={() => onConfirm(note)}
-            className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-red-500 hover:bg-red-600 transition-colors"
+            disabled={!note.trim()}
+            className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-red-500 hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
             Confirmer le rejet
           </button>
