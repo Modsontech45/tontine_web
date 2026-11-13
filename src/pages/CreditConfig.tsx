@@ -3,12 +3,12 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../lib/api'
 import { formatAmount } from '../lib/format'
 
-interface CreditPackage { amount: number; minContributingMonths: number; dailyAmount: number }
 interface Config {
-  tiers: CreditPackage[]
   isEnabled: boolean
   interestShortPct: number
   interestLongPct: number
+  minLoanAmount: number
+  minContributingMonths: number
 }
 
 function OtpModal({ onClose, onVerified }: { onClose: () => void; onVerified: (code: string) => void }) {
@@ -109,33 +109,24 @@ export function CreditConfigPage() {
   })
 
   const [form, setForm] = useState<Config>({
-    tiers: [
-      { amount: 100000, minContributingMonths: 1, dailyAmount: Math.ceil(100000 / 31) },
-      { amount: 35000,  minContributingMonths: 1, dailyAmount: Math.ceil(35000 / 31) },
-      { amount: 20000,  minContributingMonths: 1, dailyAmount: Math.ceil(20000 / 31) },
-    ],
     isEnabled: true,
     interestShortPct: 5,
     interestLongPct: 7.5,
+    minLoanAmount: 5000,
+    minContributingMonths: 1,
   })
   const [showOtp, setShowOtp] = useState(false)
   const [saved, setSaved] = useState(false)
   const [saveErr, setSaveErr] = useState('')
-  const [editingIdx, setEditingIdx] = useState<number | null>(null)
-  const [showAddForm, setShowAddForm] = useState(false)
-  const [newPkg, setNewPkg] = useState<CreditPackage>({ amount: 50000, minContributingMonths: 1, dailyAmount: Math.ceil(50000 / 31) })
 
   useEffect(() => {
     if (!data) return
     setForm({
-      ...data,
+      isEnabled: data.isEnabled,
       interestShortPct: data.interestShortPct ?? 5,
       interestLongPct: data.interestLongPct ?? 7.5,
-      tiers: (data.tiers ?? []).map(p => ({
-        ...p,
-        minContributingMonths: p.minContributingMonths ?? 1,
-        dailyAmount: p.dailyAmount ?? Math.ceil(p.amount / 31),
-      })),
+      minLoanAmount: data.minLoanAmount ?? 5000,
+      minContributingMonths: data.minContributingMonths ?? 1,
     })
   }, [data])
 
@@ -152,18 +143,6 @@ export function CreditConfigPage() {
     },
   })
 
-  function updatePkg(i: number, field: keyof CreditPackage, val: number) {
-    setForm(f => { const t = [...f.tiers]; t[i] = { ...t[i], [field]: val }; return { ...f, tiers: t } })
-  }
-  function addPkg() {
-    setForm(f => ({ ...f, tiers: [...f.tiers, newPkg] }))
-    setNewPkg({ amount: 50000, minContributingMonths: 1, dailyAmount: Math.ceil(50000 / 31) })
-    setShowAddForm(false)
-  }
-  function removePkg(i: number) {
-    setForm(f => ({ ...f, tiers: f.tiers.filter((_, j) => j !== i) }))
-  }
-
   if (isLoading) return (
     <div className="flex justify-center py-20">
       <div className="w-8 h-8 rounded-full border-4 border-indigo-500 border-t-transparent animate-spin" />
@@ -173,8 +152,11 @@ export function CreditConfigPage() {
   const card: React.CSSProperties = { background: 'var(--c-card)', border: '1px solid var(--c-card-border)' }
   const heading: React.CSSProperties = { color: 'var(--c-text-h)' }
   const sub: React.CSSProperties = { color: 'var(--c-text-s)' }
-  const body: React.CSSProperties = { color: 'var(--c-text-b)' }
   const inputStyle: React.CSSProperties = { background: 'var(--c-input-bg)', border: '1px solid var(--c-input-border)', color: 'var(--c-text-h)' }
+
+  // Example: a client contributing 500/day → 15 500/month
+  const exampleDaily = 500
+  const exampleMax = exampleDaily * 31
 
   return (
     <div className="max-w-2xl space-y-7">
@@ -188,7 +170,30 @@ export function CreditConfigPage() {
       {/* Header */}
       <div>
         <h2 className="text-2xl font-bold" style={heading}>Configuration du Crédit</h2>
-        <p className="text-sm mt-1" style={sub}>Définissez les règles d'éligibilité et les taux d'intérêt pour les demandes de crédit des clients.</p>
+        <p className="text-sm mt-1" style={sub}>Définissez les règles d'accès au crédit. Le montant maximum est automatiquement calculé à partir de la contribution mensuelle du client.</p>
+      </div>
+
+      {/* How it works */}
+      <div className="rounded-2xl p-5" style={{ background: 'var(--c-input-bg)', border: '1px solid var(--c-card-border)' }}>
+        <p className="text-xs font-bold uppercase tracking-wide mb-3" style={{ color: 'var(--c-text-m)' }}>Comment ça fonctionne</p>
+        <ul className="space-y-2 text-sm" style={{ color: 'var(--c-text-b)' }}>
+          <li className="flex items-start gap-2">
+            <svg className="flex-shrink-0 mt-0.5" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#818cf8" strokeWidth="3"><polyline points="20,6 9,17 4,12"/></svg>
+            <span>Le plafond d'emprunt = contribution journalière × 31 jours.</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <svg className="flex-shrink-0 mt-0.5" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#818cf8" strokeWidth="3"><polyline points="20,6 9,17 4,12"/></svg>
+            <span>Exemple : {formatAmount(exampleDaily)} FCFA/j → peut emprunter jusqu'à <strong>{formatAmount(exampleMax)} FCFA</strong>.</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <svg className="flex-shrink-0 mt-0.5" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#818cf8" strokeWidth="3"><polyline points="20,6 9,17 4,12"/></svg>
+            <span>Le collecteur saisit librement un montant entre le minimum et ce plafond.</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <svg className="flex-shrink-0 mt-0.5" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#818cf8" strokeWidth="3"><polyline points="20,6 9,17 4,12"/></svg>
+            <span>L'intérêt est prélevé à l'avance. Le client rembourse le montant demandé en entier.</span>
+          </li>
+        </ul>
       </div>
 
       {/* Enable toggle */}
@@ -207,14 +212,64 @@ export function CreditConfigPage() {
         </div>
       </div>
 
+      {/* Loan amount limits */}
+      <div className="rounded-2xl shadow-sm p-6 space-y-5" style={card}>
+        <div>
+          <h3 className="font-bold flex items-center gap-2" style={heading}>
+            <span className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 text-xs font-bold flex items-center justify-center">1</span>
+            Limites du prêt
+          </h3>
+          <p className="text-xs mt-1" style={sub}>Le plafond est calculé dynamiquement par client. Seul le plancher est configurable ici.</p>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div className="p-4 rounded-xl" style={{ background: 'var(--c-input-bg)', border: '1px solid var(--c-card-border)' }}>
+            <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700">Montant minimum</span>
+            <div className="flex items-end gap-1 mt-3">
+              <input
+                type="number" min={1000} step={500}
+                value={form.minLoanAmount}
+                onChange={e => setForm(f => ({ ...f, minLoanAmount: +e.target.value }))}
+                className="w-28 text-2xl font-bold rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-green-400"
+                style={inputStyle}
+              />
+              <span className="text-sm font-bold mb-1" style={{ color: 'var(--c-text-s)' }}>FCFA</span>
+            </div>
+            <p className="text-xs mt-2" style={sub}>Plancher configurable par l'admin</p>
+          </div>
+
+          <div className="p-4 rounded-xl" style={{ background: 'var(--c-input-bg)', border: '1px solid var(--c-card-border)' }}>
+            <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">Montant maximum</span>
+            <div className="mt-3">
+              <p className="text-2xl font-bold" style={{ color: 'var(--c-text-h)' }}>Automatique</p>
+            </div>
+            <p className="text-xs mt-2" style={sub}>= contribution/j × 31 (par client)</p>
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold mb-1" style={sub}>Mois de contribution requis pour être éligible</label>
+          <div className="flex items-center gap-3">
+            <input
+              type="number" min={0} max={24}
+              value={form.minContributingMonths}
+              onChange={e => setForm(f => ({ ...f, minContributingMonths: +e.target.value }))}
+              className="w-24 rounded-xl px-3 py-2 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-indigo-400"
+              style={inputStyle}
+            />
+            <span className="text-sm" style={sub}>mois minimum de cotisations actives</span>
+          </div>
+        </div>
+      </div>
+
       {/* Interest rules */}
       <div className="rounded-2xl shadow-sm p-6 space-y-4" style={card}>
         <div>
           <h3 className="font-bold flex items-center gap-2" style={heading}>
             <span className="w-6 h-6 rounded-full bg-amber-100 text-amber-700 text-xs font-bold flex items-center justify-center">%</span>
-            Règles d'intérêt
+            Taux d'intérêt
           </h3>
-          <p className="text-xs mt-1" style={sub}>Le taux est appliqué automatiquement selon la durée choisie par le client au moment de la demande.</p>
+          <p className="text-xs mt-1" style={sub}>L'intérêt est prélevé sur le montant emprunté avant remise au client. Le client rembourse le montant demandé en entier.</p>
         </div>
         <div className="grid grid-cols-2 gap-4">
           <div className="p-4 rounded-xl" style={{ background: 'var(--c-input-bg)', border: '1px solid var(--c-card-border)' }}>
@@ -246,208 +301,6 @@ export function CreditConfigPage() {
             <p className="text-xs mt-2" style={sub}>Remboursement en plus d'1 mois</p>
           </div>
         </div>
-      </div>
-
-      {/* Packages */}
-      <div className="rounded-2xl shadow-sm p-6 space-y-4" style={card}>
-        <div className="flex items-center justify-between">
-          <h3 className="font-bold flex items-center gap-2" style={heading}>
-            <span className="w-6 h-6 rounded-full bg-amber-100 text-amber-700 text-xs font-bold flex items-center justify-center">2</span>
-            Packages de crédit
-          </h3>
-          {!showAddForm && (
-            <button
-              onClick={() => { setShowAddForm(true); setEditingIdx(null) }}
-              disabled={form.tiers.length >= 12}
-              className="text-xs font-semibold px-3 py-1.5 rounded-lg text-indigo-400 hover:opacity-80 disabled:opacity-40"
-              style={{ background: 'var(--c-input-bg)', border: '1px solid var(--c-input-border)' }}>
-              + Ajouter un package
-            </button>
-          )}
-        </div>
-
-        <p className="text-xs" style={sub}>Chaque package définit un montant et les conditions d'éligibilité. Le client choisit ensuite la durée — le taux est appliqué selon les règles ci-dessus.</p>
-
-        {/* Package cards */}
-        <div className="space-y-3">
-          {form.tiers.map((pkg, i) => {
-            const isEditing = editingIdx === i
-            const shortReceived = pkg.amount - Math.round(pkg.amount * form.interestShortPct / 100)
-            const longReceived  = pkg.amount - Math.round(pkg.amount * form.interestLongPct / 100)
-            const daily = Math.ceil(pkg.amount / 31)
-
-            if (isEditing) return (
-              <div key={i} className="p-4 rounded-xl" style={{ background: 'var(--c-input-bg)', border: '2px solid #6366f1' }}>
-                <p className="text-xs font-bold mb-3" style={{ color: '#818cf8' }}>Modifier le package</p>
-                <div className="grid grid-cols-2 gap-3 mb-3">
-                  <div>
-                    <label className="text-xs font-medium" style={sub}>Montant (FCFA)</label>
-                    <input type="number" min={1000} step={5000} value={pkg.amount}
-                      onChange={e => updatePkg(i, 'amount', +e.target.value)}
-                      className="mt-1 w-full rounded-lg px-3 py-1.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-400"
-                      style={inputStyle} />
-                  </div>
-                  <div>
-                    <label className="text-xs font-medium" style={sub}>Mois de contribution requis</label>
-                    <input type="number" min={1} max={24} value={pkg.minContributingMonths}
-                      onChange={e => updatePkg(i, 'minContributingMonths', +e.target.value)}
-                      className="mt-1 w-full rounded-lg px-3 py-1.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-400"
-                      style={inputStyle} />
-                  </div>
-                  <div className="col-span-2">
-                    <label className="text-xs font-medium" style={sub}>Versement journalier (FCFA)</label>
-                    <p className="text-xs mb-1" style={{ color: 'var(--c-text-m)' }}>Minimum calculé: {formatAmount(daily)} F</p>
-                    <input type="number" min={1} step={50} value={pkg.dailyAmount}
-                      onChange={e => updatePkg(i, 'dailyAmount', +e.target.value)}
-                      className="mt-0 w-full rounded-lg px-3 py-1.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-400"
-                      style={inputStyle} />
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  <button onClick={() => setEditingIdx(null)}
-                    className="flex-1 py-2 rounded-lg text-sm font-semibold text-white"
-                    style={{ background: 'linear-gradient(135deg,#6366f1,#8b5cf6)' }}>
-                    Valider
-                  </button>
-                  <button onClick={() => setEditingIdx(null)}
-                    className="px-4 py-2 rounded-lg text-sm font-medium"
-                    style={{ background: 'var(--c-card)', border: '1px solid var(--c-card-border)', color: 'var(--c-text-s)' }}>
-                    Annuler
-                  </button>
-                </div>
-              </div>
-            )
-
-            return (
-              <div key={i} className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--c-card-border)' }}>
-                {/* Header */}
-                <div className="flex items-center justify-between px-5 py-3"
-                  style={{ background: 'linear-gradient(135deg,#1e1b4b 0%,#312e81 100%)' }}>
-                  <div>
-                    <p className="text-white font-bold text-lg leading-none">
-                      {formatAmount(pkg.amount)} <span className="text-indigo-300 text-sm font-normal">FCFA</span>
-                    </p>
-                    <p className="text-indigo-400 text-xs mt-0.5">Package de crédit</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button onClick={() => { setEditingIdx(i); setShowAddForm(false) }}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold hover:opacity-80"
-                      style={{ background: 'rgba(255,255,255,0.1)', color: '#e0e7ff' }}>
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                      </svg>
-                      Modifier
-                    </button>
-                    <button onClick={() => removePkg(i)} disabled={form.tiers.length <= 1}
-                      className="p-1.5 rounded-lg hover:opacity-70 disabled:opacity-20"
-                      style={{ color: 'rgba(255,255,255,0.4)' }} title="Supprimer">
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <polyline points="3,6 5,6 21,6"/><path d="M19,6l-1,14H6L5,6"/>
-                        <path d="M10,11v6M14,11v6"/>
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-                {/* Body */}
-                <div className="px-5 py-4" style={{ background: 'var(--c-input-bg)' }}>
-                  <div className="flex items-center gap-6 mb-3 text-sm">
-                    <div>
-                      <p className="text-[10px] uppercase tracking-wide font-semibold mb-0.5" style={sub}>Cotisation requise</p>
-                      <p className="font-bold" style={heading}>{pkg.minContributingMonths} mois</p>
-                    </div>
-                    <div style={{ width: 1, height: 32, background: 'var(--c-card-border)' }} />
-                    <div>
-                      <p className="text-[10px] uppercase tracking-wide font-semibold mb-0.5" style={sub}>Versement / jour</p>
-                      <p className="font-bold" style={heading}>{formatAmount(pkg.dailyAmount)} F</p>
-                    </div>
-                    <div style={{ width: 1, height: 32, background: 'var(--c-card-border)' }} />
-                    <div>
-                      <p className="text-[10px] uppercase tracking-wide font-semibold mb-0.5" style={sub}>Rembourse</p>
-                      <p className="font-bold" style={heading}>{formatAmount(pkg.amount)} F</p>
-                    </div>
-                  </div>
-                  <div className="border-t pt-3 space-y-1.5" style={{ borderColor: 'var(--c-card-border)' }}>
-                    <div className="flex items-center justify-between text-xs" style={body}>
-                      <span>1 mois · {form.interestShortPct}% d'intérêt</span>
-                      <span className="font-semibold" style={heading}>Reçoit {formatAmount(shortReceived)} F</span>
-                    </div>
-                    <div className="flex items-center justify-between text-xs" style={body}>
-                      <span>Plus d'1 mois · {form.interestLongPct}% d'intérêt</span>
-                      <span className="font-semibold" style={heading}>Reçoit {formatAmount(longReceived)} F</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )
-          })}
-        </div>
-
-        {/* Add package form */}
-        {showAddForm && (
-          <div className="p-4 rounded-xl" style={{ background: 'var(--c-input-bg)', border: '2px solid #6366f1' }}>
-            <p className="text-xs font-bold mb-3" style={{ color: '#818cf8' }}>Nouveau package</p>
-            <div className="grid grid-cols-2 gap-3 mb-3">
-              <div>
-                <label className="text-xs font-medium" style={sub}>Montant (FCFA)</label>
-                <input type="number" min={1000} step={5000} value={newPkg.amount}
-                  onChange={e => setNewPkg(p => ({ ...p, amount: +e.target.value, dailyAmount: Math.ceil(+e.target.value / 31) }))}
-                  className="mt-1 w-full rounded-lg px-3 py-1.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-400"
-                  style={inputStyle} />
-              </div>
-              <div>
-                <label className="text-xs font-medium" style={sub}>Mois de contribution requis</label>
-                <input type="number" min={1} max={24} value={newPkg.minContributingMonths}
-                  onChange={e => setNewPkg(p => ({ ...p, minContributingMonths: +e.target.value }))}
-                  className="mt-1 w-full rounded-lg px-3 py-1.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-400"
-                  style={inputStyle} />
-              </div>
-              <div className="col-span-2">
-                <label className="text-xs font-medium" style={sub}>Versement journalier (FCFA)</label>
-                <p className="text-xs mb-1" style={{ color: 'var(--c-text-m)' }}>Minimum calculé: {formatAmount(Math.ceil(newPkg.amount / 31))} F</p>
-                <input type="number" min={1} step={50} value={newPkg.dailyAmount}
-                  onChange={e => setNewPkg(p => ({ ...p, dailyAmount: +e.target.value }))}
-                  className="mt-0 w-full rounded-lg px-3 py-1.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-400"
-                  style={inputStyle} />
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <button onClick={addPkg}
-                className="flex-1 py-2 rounded-lg text-sm font-semibold text-white"
-                style={{ background: 'linear-gradient(135deg,#6366f1,#8b5cf6)' }}>
-                Ajouter
-              </button>
-              <button onClick={() => setShowAddForm(false)}
-                className="px-4 py-2 rounded-lg text-sm font-medium"
-                style={{ background: 'var(--c-card)', border: '1px solid var(--c-card-border)', color: 'var(--c-text-s)' }}>
-                Annuler
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Preview */}
-      <div className="rounded-2xl p-6" style={{ background: 'var(--c-input-bg)', border: '1px solid var(--c-card-border)' }}>
-        <h3 className="font-bold mb-3" style={heading}>Aperçu des règles</h3>
-        <ul className="space-y-2 text-sm" style={body}>
-          {form.tiers.map((p, i) => {
-            const shortReceived = p.amount - Math.round(p.amount * form.interestShortPct / 100)
-            const longReceived = p.amount - Math.round(p.amount * form.interestLongPct / 100)
-            return (
-              <li key={i} className="flex items-start gap-2">
-                <svg className="flex-shrink-0 mt-0.5" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#818cf8" strokeWidth="3"><polyline points="20,6 9,17 4,12"/></svg>
-                <span>
-                  Package <strong>{formatAmount(p.amount)}</strong> FCFA —{' '}
-                  1 mois ({form.interestShortPct}%) → reçoit <strong className="text-green-500">{formatAmount(shortReceived)}</strong>
-                  {' '}· +1 mois ({form.interestLongPct}%) → reçoit <strong className="text-amber-500">{formatAmount(longReceived)}</strong>.
-                  {' '}Éligible après <strong>{p.minContributingMonths} mois</strong>.{' '}
-                  Versement journalier: <strong>{formatAmount(p.dailyAmount)}/j</strong>.
-                </span>
-              </li>
-            )
-          })}
-        </ul>
       </div>
 
       {/* Save */}
