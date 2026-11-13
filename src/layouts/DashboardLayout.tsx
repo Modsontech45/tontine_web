@@ -64,6 +64,22 @@ export function DashboardLayout() {
   })
   const pendingRepayCount: number = pendingRepayData?.data?.length ?? 0
 
+  const { data: pendingCreditData } = useQuery({
+    queryKey: ['pending-credit-count'],
+    queryFn: () => api.get('/credit/requests?status=PENDING').then(r => r.data?.data?.length ?? 0),
+    refetchInterval: 60_000,
+    enabled: ['SUPER_ADMIN', 'ADMIN', 'CONTROLLER', 'CASHIER'].includes(role),
+  })
+  const pendingCreditCount: number = pendingCreditData ?? 0
+
+  const { data: pendingDevicesData } = useQuery({
+    queryKey: ['pending-devices-count'],
+    queryFn: () => api.get('/devices?status=PENDING').then(r => r.data?.data?.length ?? 0),
+    refetchInterval: 60_000,
+    enabled: ['SUPER_ADMIN', 'ADMIN'].includes(role),
+  })
+  const pendingDevicesCount: number = pendingDevicesData ?? 0
+
   return (
     <div className={theme === 'dark' ? 'dark' : ''} style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
       <div className="flex h-screen" style={{ background: 'var(--c-app)' }}>
@@ -83,10 +99,15 @@ export function DashboardLayout() {
 
           {/* Nav */}
           <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-6">
-            <NavSection label="MENU" items={MENU.filter(i => !i.roles || i.roles.includes(role)).map(i =>
-              i.to === '/pending-repayments' ? { ...i, badge: pendingRepayCount } : i
+            <NavSection label="MENU" items={MENU.filter(i => !i.roles || i.roles.includes(role)).map(i => {
+              if (i.to === '/pending-repayments') return { ...i, badge: pendingRepayCount }
+              if (i.to === '/activity') return { ...i, badge: total }
+              if (i.to === '/credit') return { ...i, badge: pendingCreditCount }
+              return i
+            })} />
+            <NavSection label="GÉNÉRAL" items={GENERAL.filter(i => !i.roles || i.roles.includes(role)).map(i =>
+              i.to === '/devices' ? { ...i, badge: pendingDevicesCount } : i
             )} />
-            <NavSection label="GÉNÉRAL" items={GENERAL.filter(i => !i.roles || i.roles.includes(role))} />
           </nav>
 
           {/* Logout only */}
