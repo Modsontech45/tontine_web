@@ -1,11 +1,36 @@
 import { useParams, useNavigate } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useState } from 'react'
 import { api } from '../lib/api'
 import { formatAmount, formatDate, formatDateTime, STATUS_LABELS } from '../lib/format'
+import { getStoredUser } from '../lib/auth'
 
 export function ClientDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const qc = useQueryClient()
+  const user = getStoredUser()
+  const canManageCycles = user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' || user?.role === 'CONTROLLER'
+
+  const [showNewCycleForm, setShowNewCycleForm] = useState(false)
+  const [newCycleForm, setNewCycleForm] = useState({
+    stake_amount: 500,
+    start_date: new Date().toISOString().slice(0, 10),
+    end_date: (() => { const d = new Date(); d.setMonth(d.getMonth() + 1, 0); return d.toISOString().slice(0, 10) })(),
+  })
+  const [cycleError, setCycleError] = useState('')
+
+  const closeCycleMut = useMutation({
+    mutationFn: (cycleId: string) => api.post(`/cycles/${cycleId}/close`, { reason: 'Cycle complété' }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['client', id] }),
+    onError: (e: any) => alert(e?.response?.data?.error?.message ?? 'Erreur lors de la clôture'),
+  })
+
+  const createCycleMut = useMutation({
+    mutationFn: () => api.post(`/clients/${id}/cycles`, newCycleForm),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['client', id] }); setShowNewCycleForm(false); setCycleError('') },
+    onError: (e: any) => setCycleError(e?.response?.data?.error?.message ?? 'Erreur lors de la création'),
+  })
 
   const { data: client, isLoading } = useQuery({
     queryKey: ['client', id],
@@ -168,10 +193,26 @@ export function ClientDetailPage() {
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Cycle en cours</h3>
-                <span className="text-2xl font-bold text-gray-900">{filled}<span className="text-base font-normal text-gray-400">/{maxBoxes}</span></span>
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl font-bold text-gray-900">{filled}<span className="text-base font-normal text-gray-400">/{maxBoxes}</span></span>
+                  {canManageCycles && filled >= maxBoxes && (
+                    <button
+                      onClick={() => { if (window.confirm('Clôturer ce cycle complet ?')) closeCycleMut.mutate(openCycle.id) }}
+                      disabled={closeCycleMut.isPending}
+                      className="text-xs px-3 py-1.5 bg-orange-600 text-white rounded hover:bg-orange-700 disabled:opacity-50"
+                    >
+                      {closeCycleMut.isPending ? '...' : 'Clôturer'}
+                    </button>
+                  )}
+                </div>
               </div>
+              {filled >= maxBoxes && (
+                <div className="mb-3 px-3 py-2 bg-orange-50 border border-orange-200 rounded text-xs text-orange-800 font-medium">
+                  Ce cycle est complet (31/31 mises). Clôturez-le pour en ouvrir un nouveau.
+                </div>
+              )}
               <div className="w-full bg-gray-100 rounded-full h-3 mb-4">
-                <div className="bg-green-500 h-3 rounded-full transition-all" style={{ width: `${progressPct}%` }} />
+                <div className={`h-3 rounded-full transition-all ${filled >= maxBoxes ? 'bg-orange-400' : 'bg-green-500'}`} style={{ width: `${Math.min(100, progressPct)}%` }} />
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
                 <div>
@@ -193,8 +234,42 @@ export function ClientDetailPage() {
               </div>
             </div>
           ) : (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 text-center text-gray-500 text-sm">
-              Aucun cycle ouvert
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+              <div className="flex justify-between items-center mb-3">
+                <span className="text-sm text-gray-500">Aucun cycle ouvert</span>
+                {canManageCycles && !showNewCycleForm && (
+                  <button onClick={() => setShowNewCycleForm(true)} className="text-xs px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700">
+                    + Nouveau cycle
+                  </button>
+                )}
+              </div>
+              {showNewCycleForm && (
+                <div className="space-y-3 mt-2">
+                  <div className="grid grid-cols-3 gap-2">
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">Mise (F)</label>
+                      <select value={newCycleForm.stake_amount} onChange={e => setNewCycleForm(f => ({ ...f, stake_amount: parseInt(e.target.value) }))} className="w-full border rounded px-2 py-1.5 text-sm">
+                        {[100, 200, 250, 500, 600, 1000, 1500, 2000, 5000].map(a => <option key={a} value={a}>{a} F</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">Début</label>
+                      <input type="date" value={newCycleForm.start_date} onChange={e => setNewCycleForm(f => ({ ...f, start_date: e.target.value }))} className="w-full border rounded px-2 py-1.5 text-sm" />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">Fin</label>
+                      <input type="date" value={newCycleForm.end_date} onChange={e => setNewCycleForm(f => ({ ...f, end_date: e.target.value }))} className="w-full border rounded px-2 py-1.5 text-sm" />
+                    </div>
+                  </div>
+                  {cycleError && <p className="text-red-600 text-xs">{cycleError}</p>}
+                  <div className="flex gap-2 justify-end">
+                    <button onClick={() => { setShowNewCycleForm(false); setCycleError('') }} className="text-xs px-3 py-1.5 border rounded text-gray-600 hover:bg-gray-50">Annuler</button>
+                    <button onClick={() => createCycleMut.mutate()} disabled={createCycleMut.isPending} className="text-xs px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50">
+                      {createCycleMut.isPending ? 'Création...' : 'Créer le cycle'}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
