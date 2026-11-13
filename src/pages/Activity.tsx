@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useNavigate } from 'react-router-dom'
 import { api } from '../lib/api'
 import { formatDateTime } from '../lib/format'
 
@@ -65,6 +66,30 @@ const ACTION_COLORS: Record<string, string> = {
   RESET_PIN: 'bg-amber-100 text-amber-700',
 }
 
+function getDetailLink(log: LogEntry): string | null {
+  const { action, entity, entityId } = log
+  switch (entity) {
+    case 'clients':
+      return entityId ? `/clients/${entityId}` : '/clients'
+    case 'loan_requests':
+      if (action === 'CREATE_LOAN_REQUEST' || action === 'REJECT_LOAN') return '/credit'
+      return '/active-loans'
+    case 'loan_repayments':
+      if (action === 'LOAN_REPAYMENT_RECORDED') return '/pending-repayments'
+      return '/active-loans'
+    case 'users':
+      return '/users'
+    case 'devices':
+      return '/devices'
+    case 'collections':
+    case 'handovers':
+    case 'void_requests':
+      return '/caisse'
+    default:
+      return null
+  }
+}
+
 function timeAgo(dateStr: string | null): string {
   if (!dateStr) return '—'
   const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000)
@@ -76,6 +101,7 @@ function timeAgo(dateStr: string | null): string {
 
 export function ActivityPage() {
   const qc = useQueryClient()
+  const navigate = useNavigate()
 
   const { data, isLoading, dataUpdatedAt } = useQuery({
     queryKey: ['activity'],
@@ -195,26 +221,40 @@ export function ActivityPage() {
               <div className="divide-y divide-gray-50 max-h-[600px] overflow-y-auto">
                 {logs.length === 0 ? (
                   <div className="py-12 text-center text-gray-400 text-sm">Aucune activité récente</div>
-                ) : logs.map((log) => (
-                  <div key={log.id} className="px-4 py-3 flex items-start gap-3 hover:bg-gray-50/50">
-                    <span className={`mt-0.5 px-2 py-0.5 rounded text-xs font-semibold flex-shrink-0 ${ACTION_COLORS[log.action] ?? 'bg-gray-100 text-gray-600'}`}>
-                      {ACTION_LABELS[log.action] ?? log.action}
-                    </span>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm text-gray-800">
-                        {log.actorName ?? <span className="text-gray-400">Système</span>}
-                        {log.actorRole && <span className="text-xs text-gray-400 ml-1">({log.actorRole})</span>}
-                      </p>
-                      {log.entityId && (
-                        <p className="text-xs font-mono text-gray-400 truncate">{log.entity} · {log.entityId}</p>
-                      )}
+                ) : logs.map((log) => {
+                  const link = getDetailLink(log)
+                  return (
+                    <div
+                      key={log.id}
+                      onClick={() => link && navigate(link)}
+                      className={`px-4 py-3 flex items-start gap-3 transition-colors ${link ? 'cursor-pointer hover:bg-indigo-50/60' : 'hover:bg-gray-50/50'}`}
+                    >
+                      <span className={`mt-0.5 px-2 py-0.5 rounded text-xs font-semibold flex-shrink-0 ${ACTION_COLORS[log.action] ?? 'bg-gray-100 text-gray-600'}`}>
+                        {ACTION_LABELS[log.action] ?? log.action}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-gray-800">
+                          {log.actorName ?? <span className="text-gray-400">Système</span>}
+                          {log.actorRole && <span className="text-xs text-gray-400 ml-1">({log.actorRole})</span>}
+                        </p>
+                        {log.entityId && (
+                          <p className="text-xs font-mono text-gray-400 truncate">{log.entity} · {log.entityId}</p>
+                        )}
+                      </div>
+                      <div className="text-right flex-shrink-0 flex items-start gap-2">
+                        <div>
+                          <p className="text-xs font-medium text-gray-500">{timeAgo(log.at)}</p>
+                          <p className="text-xs text-gray-400">{formatDateTime(log.at)}</p>
+                        </div>
+                        {link && (
+                          <svg className="mt-0.5 text-indigo-400 flex-shrink-0" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="9,18 15,12 9,6"/>
+                          </svg>
+                        )}
+                      </div>
                     </div>
-                    <div className="text-right flex-shrink-0">
-                      <p className="text-xs font-medium text-gray-500">{timeAgo(log.at)}</p>
-                      <p className="text-xs text-gray-400">{formatDateTime(log.at)}</p>
-                    </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             </div>
           </div>
