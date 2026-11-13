@@ -33,8 +33,8 @@ function ConfirmModal({
       setStep('otp')
     } catch (err: any) {
       const code = err?.response?.data?.error?.code
-      if (code === 'NO_EMAIL') {
-        // No email on account — confirm directly without OTP
+      if (code === 'NO_EMAIL' || code === 'EMAIL_ERROR') {
+        // No email configured or SMTP unavailable — confirm directly without OTP
         confirmDirect()
       } else {
         setError(err?.response?.data?.error?.message ?? 'Erreur lors de l\'envoi du code')
