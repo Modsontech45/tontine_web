@@ -184,7 +184,13 @@ export function CaissePage() {
     qc.invalidateQueries({ queryKey: ['dashboard-admin'] })
   }
 
-  const pendingRows = (pending ?? []).filter((r: any) => !r.handover_status || r.handover_status === 'OPEN')
+  // Show a collector as pending if they have no confirmed handover OR if they've
+  // collected more since their last confirmation (expected > received).
+  const pendingRows = (pending ?? []).filter((r: any) =>
+    !r.handover_id ||
+    r.handover_status !== 'CONFIRMED' ||
+    r.expected_amount > (r.received_amount ?? 0)
+  )
   const confirmedRows = confirmed?.data ?? []
 
   return (
@@ -202,7 +208,7 @@ export function CaissePage() {
       {confirming && !isReadOnly && (
         <ConfirmModal
           collector={confirming}
-          expectedAmount={confirming.expected_amount}
+          expectedAmount={confirming._outstanding ?? confirming.expected_amount}
           businessDate={date}
           onClose={() => setConfirming(null)}
           onConfirmed={refetch}
@@ -233,16 +239,20 @@ export function CaissePage() {
                 <tr>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">Collecteur</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">Encaissements</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">Montant attendu</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">Montant total</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">Reste à verser</th>
                   <th className="px-4 py-3" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {pendingRows.map((row: any) => (
+                {pendingRows.map((row: any) => {
+                  const outstanding = row.expected_amount - (row.received_amount ?? 0)
+                  return (
                   <tr key={row.collector_id}>
                     <td className="px-4 py-3 font-medium">{row.first_name} {row.last_name}</td>
                     <td className="px-4 py-3 text-gray-600">{row.collections_count} encaissement{row.collections_count > 1 ? 's' : ''}</td>
-                    <td className="px-4 py-3 font-bold text-gray-900">{formatAmount(row.expected_amount)}</td>
+                    <td className="px-4 py-3 text-gray-700">{formatAmount(row.expected_amount)}</td>
+                    <td className="px-4 py-3 font-bold text-orange-700">{formatAmount(outstanding)}</td>
                     <td className="px-4 py-3 text-right">
                       {isReadOnly ? (
                         <span className="px-3 py-1.5 text-xs bg-gray-100 text-gray-400 rounded font-medium">
@@ -250,7 +260,7 @@ export function CaissePage() {
                         </span>
                       ) : (
                         <button
-                          onClick={() => setConfirming(row)}
+                          onClick={() => setConfirming({ ...row, _outstanding: outstanding })}
                           className="px-3 py-1.5 text-xs bg-green-700 text-white rounded hover:bg-green-800 font-medium"
                         >
                           Confirmer versement
