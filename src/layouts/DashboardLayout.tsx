@@ -19,8 +19,8 @@ const MENU: NavItem[] = [
 ]
 
 const GENERAL: NavItem[] = [
-  { to: '/users', label: 'Utilisateurs', icon: IconUsers },
-  { to: '/devices', label: 'Appareils', icon: IconDevices },
+  { to: '/users', label: 'Utilisateurs', icon: IconUsers, roles: ['SUPER_ADMIN', 'ADMIN', 'CONTROLLER'] },
+  { to: '/devices', label: 'Appareils', icon: IconDevices, roles: ['SUPER_ADMIN', 'ADMIN', 'CONTROLLER'] },
   { to: '/zones', label: 'Zones', icon: IconZones },
   { to: '/credit-config', label: 'Config crédit', icon: IconCreditConfig, roles: ['SUPER_ADMIN', 'ADMIN'] },
   { to: '/settings', label: 'Paramètres', icon: IconSettings },
