@@ -32,6 +32,15 @@ export function ClientDetailPage() {
     onError: (e: any) => setCycleError(e?.response?.data?.error?.message ?? 'Erreur lors de la création'),
   })
 
+  const [payingOutCycleId, setPayingOutCycleId] = useState<string | null>(null)
+  const [payoutNotes, setPayoutNotes] = useState('')
+  const [carnetVerified, setCarnetVerified] = useState(false)
+  const payoutMut = useMutation({
+    mutationFn: (cycleId: string) => api.post(`/cycles/${cycleId}/payout`, { carnet_verified: carnetVerified, notes: payoutNotes || undefined }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['client', id] }); setPayingOutCycleId(null); setCarnetVerified(false); setPayoutNotes('') },
+    onError: (e: any) => alert(e?.response?.data?.error?.message ?? 'Erreur lors du remboursement'),
+  })
+
   const { data: client, isLoading } = useQuery({
     queryKey: ['client', id],
     queryFn: () => api.get(`/clients/${id}`).then((r) => r.data),
@@ -307,8 +316,106 @@ export function ClientDetailPage() {
               </table>
             )}
           </div>
+
+          {/* Closed cycles awaiting payout */}
+          {(client?.cycles ?? []).filter((c: any) => c.status === 'CLOSED' || c.status === 'PAID').length > 0 && (
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+              <div className="px-5 py-4 border-b">
+                <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Remboursements</h3>
+              </div>
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="text-left px-4 py-2 text-xs font-medium text-gray-500">Cycle</th>
+                    <th className="text-left px-4 py-2 text-xs font-medium text-gray-500">Total cotisé</th>
+                    <th className="text-left px-4 py-2 text-xs font-medium text-gray-500">Commission</th>
+                    <th className="text-left px-4 py-2 text-xs font-medium text-gray-500">Net à payer</th>
+                    <th className="text-left px-4 py-2 text-xs font-medium text-gray-500">Statut</th>
+                    {canManageCycles && <th className="px-4 py-2" />}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {(client?.cycles ?? []).filter((c: any) => c.status === 'CLOSED' || c.status === 'PAID').map((c: any) => (
+                    <tr key={c.id}>
+                      <td className="px-4 py-3 font-medium">Cycle {c.cycleSequence}</td>
+                      <td className="px-4 py-3">{formatAmount(c.totalPaid)}</td>
+                      <td className="px-4 py-3 text-orange-700">{c.commissionAmount != null ? formatAmount(c.commissionAmount) : '—'}</td>
+                      <td className="px-4 py-3 font-bold text-green-700">{c.netToPay != null ? formatAmount(c.netToPay) : '—'}</td>
+                      <td className="px-4 py-3">
+                        {c.status === 'PAID'
+                          ? <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded font-medium">Remboursé ✓</span>
+                          : <span className="text-xs bg-orange-100 text-orange-800 px-2 py-0.5 rounded font-medium">En attente</span>
+                        }
+                      </td>
+                      {canManageCycles && (
+                        <td className="px-4 py-3 text-right">
+                          {c.status === 'CLOSED' && (
+                            <button
+                              onClick={() => { setPayingOutCycleId(c.id); setCarnetVerified(false); setPayoutNotes('') }}
+                              className="text-xs px-3 py-1.5 bg-green-700 text-white rounded hover:bg-green-800"
+                            >
+                              Rembourser le client
+                            </button>
+                          )}
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Payout confirmation modal */}
+      {payingOutCycleId && (() => {
+        const c = (client?.cycles ?? []).find((cy: any) => cy.id === payingOutCycleId)
+        if (!c) return null
+        return (
+          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+            <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md">
+              <h3 className="text-lg font-semibold mb-1">Rembourser le client</h3>
+              <p className="text-sm text-gray-600 mb-4">{client.firstName} {client.lastName} — Cycle {c.cycleSequence}</p>
+              <div className="space-y-3 mb-4">
+                <div className="flex justify-between text-sm py-2 border-b">
+                  <span className="text-gray-500">Total cotisé</span>
+                  <span className="font-semibold">{formatAmount(c.totalPaid)}</span>
+                </div>
+                <div className="flex justify-between text-sm py-2 border-b">
+                  <span className="text-gray-500">Commission</span>
+                  <span className="font-semibold text-orange-700">- {formatAmount(c.commissionAmount ?? 0)}</span>
+                </div>
+                <div className="flex justify-between text-sm py-2 border-b">
+                  <span className="text-gray-600 font-medium">Net à remettre au client</span>
+                  <span className="text-xl font-bold text-green-700">{formatAmount(c.netToPay ?? (c.totalPaid - (c.commissionAmount ?? 0)))}</span>
+                </div>
+              </div>
+              <label className="flex items-center gap-2 text-sm mb-3 cursor-pointer">
+                <input type="checkbox" checked={carnetVerified} onChange={e => setCarnetVerified(e.target.checked)} className="w-4 h-4" />
+                <span>J'ai vérifié le carnet du client</span>
+              </label>
+              <textarea
+                placeholder="Notes (optionnel)"
+                value={payoutNotes}
+                onChange={e => setPayoutNotes(e.target.value)}
+                rows={2}
+                className="w-full border rounded px-3 py-2 text-sm mb-4"
+              />
+              <div className="flex justify-end gap-2">
+                <button onClick={() => setPayingOutCycleId(null)} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded">Annuler</button>
+                <button
+                  onClick={() => payoutMut.mutate(payingOutCycleId)}
+                  disabled={!carnetVerified || payoutMut.isPending}
+                  className="px-4 py-2 text-sm bg-green-700 text-white rounded hover:bg-green-800 disabled:opacity-50"
+                >
+                  {payoutMut.isPending ? 'Enregistrement...' : 'Confirmer le remboursement'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
     </div>
   )
 }
