@@ -3,6 +3,20 @@ import { useState } from 'react'
 import { api } from '../lib/api'
 import { formatAmount, formatDateTime } from '../lib/format'
 
+const OTP_VERIFIED_KEY = 'handover_otp_verified_at'
+const OTP_WINDOW_MS = 60 * 60 * 1000 // 1 hour
+
+function isOtpVerifiedRecently(): boolean {
+  try {
+    const ts = localStorage.getItem(OTP_VERIFIED_KEY)
+    return !!ts && Date.now() - parseInt(ts) < OTP_WINDOW_MS
+  } catch { return false }
+}
+
+function markOtpVerified() {
+  try { localStorage.setItem(OTP_VERIFIED_KEY, Date.now().toString()) } catch {}
+}
+
 function ConfirmModal({
   collector,
   expectedAmount,
@@ -23,6 +37,7 @@ function ConfirmModal({
   const [error, setError] = useState('')
   const [sending, setSending] = useState(false)
 
+  const alreadyVerified = isOtpVerifiedRecently()
   const diff = receivedAmount - expectedAmount
 
   const requestOtp = async () => {
@@ -34,7 +49,6 @@ function ConfirmModal({
     } catch (err: any) {
       const code = err?.response?.data?.error?.code
       if (code === 'NO_EMAIL' || code === 'EMAIL_ERROR') {
-        // No email configured or SMTP unavailable — confirm directly without OTP
         confirmDirect()
       } else {
         setError(err?.response?.data?.error?.message ?? 'Erreur lors de l\'envoi du code')
@@ -61,6 +75,7 @@ function ConfirmModal({
   const confirmWithOtp = () => {
     if (otpCode.length !== 6) { setError('Entrez le code à 6 chiffres'); return }
     setError('')
+    markOtpVerified()
     confirm.mutate(otpCode)
   }
 
@@ -137,22 +152,23 @@ function ConfirmModal({
         <div className="flex justify-end gap-2 mt-5">
           <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded">Annuler</button>
           {step === 'form' ? (
-            <>
+            alreadyVerified ? (
               <button
                 onClick={confirmDirect}
                 disabled={confirm.isPending || receivedAmount < 0}
-                className="px-4 py-2 text-sm border border-green-700 text-green-700 rounded hover:bg-green-50 disabled:opacity-50"
+                className="px-4 py-2 text-sm bg-green-700 text-white rounded hover:bg-green-800 disabled:opacity-50"
               >
-                {confirm.isPending ? 'Enregistrement...' : 'Confirmer directement'}
+                {confirm.isPending ? 'Enregistrement...' : 'Confirmer le versement'}
               </button>
+            ) : (
               <button
                 onClick={requestOtp}
                 disabled={sending || receivedAmount < 0}
                 className="px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
               >
-                {sending ? 'Envoi...' : 'Confirmer avec code'}
+                {sending ? 'Envoi...' : 'Envoyer le code de vérification'}
               </button>
-            </>
+            )
           ) : (
             <button
               onClick={confirmWithOtp}
