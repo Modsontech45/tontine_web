@@ -137,13 +137,22 @@ function ConfirmModal({
         <div className="flex justify-end gap-2 mt-5">
           <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded">Annuler</button>
           {step === 'form' ? (
-            <button
-              onClick={requestOtp}
-              disabled={sending || receivedAmount < 0}
-              className="px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
-            >
-              {sending ? 'Envoi...' : 'Envoyer le code de vérification'}
-            </button>
+            <>
+              <button
+                onClick={confirmDirect}
+                disabled={confirm.isPending || receivedAmount < 0}
+                className="px-4 py-2 text-sm border border-green-700 text-green-700 rounded hover:bg-green-50 disabled:opacity-50"
+              >
+                {confirm.isPending ? 'Enregistrement...' : 'Confirmer directement'}
+              </button>
+              <button
+                onClick={requestOtp}
+                disabled={sending || receivedAmount < 0}
+                className="px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+              >
+                {sending ? 'Envoi...' : 'Confirmer avec code'}
+              </button>
+            </>
           ) : (
             <button
               onClick={confirmWithOtp}
