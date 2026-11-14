@@ -32,7 +32,7 @@ function ConfirmModal({
 }) {
   const [receivedAmount, setReceivedAmount] = useState(expectedAmount)
   const [notes, setNotes] = useState('')
-  const [step, setStep] = useState<'form' | 'otp'>('form')
+  const [step, setStep] = useState<'form' | 'otp' | 'success'>('form')
   const [otpCode, setOtpCode] = useState('')
   const [error, setError] = useState('')
   const [sending, setSending] = useState(false)
@@ -63,7 +63,7 @@ function ConfirmModal({
         notes: notes || undefined,
         otp_code: otp,
       }),
-    onSuccess: () => { onConfirmed(); onClose() },
+    onSuccess: () => { setStep('success'); onConfirmed(); setTimeout(onClose, 1800) },
     onError: (err: any) => setError(err?.response?.data?.error?.message ?? 'Erreur'),
   })
 
@@ -152,38 +152,52 @@ function ConfirmModal({
           </div>
         )}
 
-        {error && <p className="text-red-600 text-sm mt-3">{error}</p>}
+        {step === 'success' && (
+          <div className="flex flex-col items-center py-6 gap-3">
+            <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center">
+              <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7"/>
+              </svg>
+            </div>
+            <p className="text-base font-semibold text-green-800">Versement confirmé !</p>
+            <p className="text-sm text-gray-500">{formatAmount(receivedAmount)} enregistré pour {collector.first_name} {collector.last_name}</p>
+          </div>
+        )}
 
-        <div className="flex justify-end gap-2 mt-5">
-          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded">Annuler</button>
-          {step === 'form' ? (
-            alreadyVerified ? (
+        {error && step !== 'success' && <p className="text-red-600 text-sm mt-3">{error}</p>}
+
+        {step !== 'success' && (
+          <div className="flex justify-end gap-2 mt-5">
+            <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded">Annuler</button>
+            {step === 'form' ? (
+              alreadyVerified ? (
+                <button
+                  onClick={confirmDirect}
+                  disabled={confirm.isPending || receivedAmount < 0}
+                  className="px-4 py-2 text-sm bg-green-700 text-white rounded hover:bg-green-800 disabled:opacity-50"
+                >
+                  {confirm.isPending ? 'Enregistrement...' : 'Confirmer le versement'}
+                </button>
+              ) : (
+                <button
+                  onClick={requestOtp}
+                  disabled={sending || confirm.isPending || receivedAmount < 0}
+                  className="px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {sending || confirm.isPending ? 'Confirmation...' : 'Envoyer le code de vérification'}
+                </button>
+              )
+            ) : (
               <button
-                onClick={confirmDirect}
-                disabled={confirm.isPending || receivedAmount < 0}
+                onClick={confirmWithOtp}
+                disabled={confirm.isPending || otpCode.length !== 6}
                 className="px-4 py-2 text-sm bg-green-700 text-white rounded hover:bg-green-800 disabled:opacity-50"
               >
                 {confirm.isPending ? 'Enregistrement...' : 'Confirmer le versement'}
               </button>
-            ) : (
-              <button
-                onClick={requestOtp}
-                disabled={sending || receivedAmount < 0}
-                className="px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
-              >
-                {sending ? 'Envoi...' : 'Envoyer le code de vérification'}
-              </button>
-            )
-          ) : (
-            <button
-              onClick={confirmWithOtp}
-              disabled={confirm.isPending || otpCode.length !== 6}
-              className="px-4 py-2 text-sm bg-green-700 text-white rounded hover:bg-green-800 disabled:opacity-50"
-            >
-              {confirm.isPending ? 'Enregistrement...' : 'Confirmer le versement'}
-            </button>
-          )}
-        </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )
