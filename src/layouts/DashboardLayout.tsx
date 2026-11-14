@@ -9,7 +9,7 @@ type NavItem = { to: string; label: string; exact?: boolean; icon: React.FC<{act
 
 const MENU: NavItem[] = [
   { to: '/', label: 'Tableau de bord', exact: true, icon: IconDashboard },
-  { to: '/activity', label: 'Activité en direct', icon: IconActivity },
+  { to: '/activity', label: 'Activité en direct', icon: IconActivity, roles: ['SUPER_ADMIN', 'ADMIN', 'CONTROLLER'] },
   { to: '/clients', label: 'Clients', icon: IconClients },
   { to: '/caisse', label: 'Caisse', icon: IconCaisse },
   { to: '/stickers', label: 'Carnets / Stickers', icon: IconStickers },
@@ -24,7 +24,7 @@ const GENERAL: NavItem[] = [
   { to: '/zones', label: 'Zones', icon: IconZones },
   { to: '/credit-config', label: 'Config crédit', icon: IconCreditConfig, roles: ['SUPER_ADMIN', 'ADMIN'] },
   { to: '/settings', label: 'Paramètres', icon: IconSettings },
-  { to: '/audit-log', label: 'Journal d\'audit', icon: IconAudit },
+  { to: '/audit-log', label: 'Journal d\'audit', icon: IconAudit, roles: ['SUPER_ADMIN', 'ADMIN', 'CONTROLLER'] },
 ]
 
 export function DashboardLayout() {
