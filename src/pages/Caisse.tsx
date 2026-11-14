@@ -123,7 +123,7 @@ function ConfirmModal({
         {step === 'otp' && (
           <div className="space-y-4">
             <div className="bg-blue-50 border border-blue-200 text-blue-800 text-sm px-4 py-3 rounded-lg">
-              Code envoyé à votre email — valide 10 minutes
+              Code envoyé à votre email — copiez-le et collez-le ici, valide 10 minutes
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-2">Code de vérification (6 chiffres)</label>
@@ -132,7 +132,16 @@ function ConfirmModal({
                 inputMode="numeric"
                 maxLength={6}
                 value={otpCode}
-                onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/\D/g, '').slice(0, 6)
+                  setOtpCode(val)
+                  // Auto-confirm as soon as 6 digits are entered (paste or typed)
+                  if (val.length === 6) {
+                    setError('')
+                    markOtpVerified()
+                    confirm.mutate(val)
+                  }
+                }}
                 autoFocus
                 className="w-full border-2 rounded-lg px-4 py-3 text-3xl font-bold text-center tracking-widest focus:outline-none focus:border-blue-500"
                 placeholder="——————"
