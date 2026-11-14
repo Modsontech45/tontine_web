@@ -80,6 +80,20 @@ export function DashboardLayout() {
   })
   const pendingDevicesCount: number = pendingDevicesData ?? 0
 
+  const today2 = new Date().toISOString().slice(0, 10)
+  const { data: pendingHandoversData } = useQuery({
+    queryKey: ['pending-handovers-count', today2],
+    queryFn: () => api.get('/handovers/pending', { params: { date: today2 } }).then(r => {
+      const rows = r.data ?? []
+      return rows.filter((row: any) =>
+        !row.handover_id || row.handover_status !== 'CONFIRMED' || row.expected_amount > (row.received_amount ?? 0)
+      ).length
+    }),
+    refetchInterval: 60_000,
+    enabled: ['SUPER_ADMIN', 'ADMIN', 'CASHIER', 'CONTROLLER'].includes(role),
+  })
+  const pendingHandoversCount: number = pendingHandoversData ?? 0
+
   return (
     <div className={theme === 'dark' ? 'dark' : ''} style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
       <div className="flex h-screen" style={{ background: 'var(--c-app)' }}>
@@ -103,6 +117,7 @@ export function DashboardLayout() {
               if (i.to === '/pending-repayments') return { ...i, badge: pendingRepayCount }
               if (i.to === '/activity') return { ...i, badge: total }
               if (i.to === '/credit') return { ...i, badge: pendingCreditCount }
+              if (i.to === '/caisse') return { ...i, badge: pendingHandoversCount }
               return i
             })} />
             <NavSection label="GÉNÉRAL" items={GENERAL.filter(i => !i.roles || i.roles.includes(role)).map(i =>
