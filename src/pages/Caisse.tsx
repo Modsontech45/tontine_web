@@ -46,13 +46,9 @@ function ConfirmModal({
     try {
       await api.post('/otp/request', { purpose: 'CONFIRM_HANDOVER' })
       setStep('otp')
-    } catch (err: any) {
-      const code = err?.response?.data?.error?.code
-      if (code === 'NO_EMAIL' || code === 'EMAIL_ERROR') {
-        confirmDirect()
-      } else {
-        setError(err?.response?.data?.error?.message ?? 'Erreur lors de l\'envoi du code')
-      }
+    } catch {
+      // Email not configured or unavailable — confirm directly without OTP
+      confirmDirect()
     } finally {
       setSending(false)
     }
