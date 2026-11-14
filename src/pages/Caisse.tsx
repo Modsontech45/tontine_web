@@ -186,6 +186,15 @@ function ConfirmModal({
 
 import { getStoredUser } from '../lib/auth'
 
+function CollectorAvatar({ firstName, lastName }: { firstName: string; lastName: string }) {
+  const initials = `${firstName?.[0] ?? ''}${lastName?.[0] ?? ''}`.toUpperCase()
+  return (
+    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center flex-shrink-0">
+      <span className="text-white text-xs font-bold">{initials}</span>
+    </div>
+  )
+}
+
 export function CaissePage() {
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10))
   const [confirming, setConfirming] = useState<any | null>(null)
@@ -197,7 +206,6 @@ export function CaissePage() {
     queryKey: ['handovers-pending', date],
     queryFn: () => api.get('/handovers/pending', { params: { date } }).then((r) => r.data),
   })
-
   const { data: confirmed, isLoading: loadingConfirmed } = useQuery({
     queryKey: ['handovers-confirmed', date],
     queryFn: () => api.get('/handovers', { params: { date, status: 'CONFIRMED', page_size: 50 } }).then((r) => r.data),
@@ -209,27 +217,21 @@ export function CaissePage() {
     qc.invalidateQueries({ queryKey: ['dashboard-admin'] })
   }
 
-  // Show a collector as pending if they have no confirmed handover OR if they've
-  // collected more since their last confirmation (expected > received).
   const pendingRows = (pending ?? []).filter((r: any) =>
-    !r.handover_id ||
-    r.handover_status !== 'CONFIRMED' ||
-    r.expected_amount > (r.received_amount ?? 0)
+    !r.handover_id || r.handover_status !== 'CONFIRMED' || r.expected_amount > (r.received_amount ?? 0)
   )
   const confirmedRows = confirmed?.data ?? []
 
-  return (
-    <div>
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-semibold text-gray-900">Caisse</h2>
-        <input
-          type="date"
-          value={date}
-          onChange={(e) => setDate(e.target.value)}
-          className="border rounded px-3 py-1.5 text-sm"
-        />
-      </div>
+  const totalPending = pendingRows.reduce((s: number, r: any) => s + (r.expected_amount - (r.received_amount ?? 0)), 0)
+  const totalConfirmed = confirmedRows.reduce((s: number, h: any) => s + (h.receivedAmount ?? 0), 0)
 
+  const prevDay = () => { const d = new Date(date); d.setDate(d.getDate() - 1); setDate(d.toISOString().slice(0, 10)) }
+  const nextDay = () => { const d = new Date(date); d.setDate(d.getDate() + 1); setDate(d.toISOString().slice(0, 10)) }
+  const isToday = date === new Date().toISOString().slice(0, 10)
+  const displayDate = new Date(date + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })
+
+  return (
+    <div className="max-w-4xl mx-auto">
       {confirming && !isReadOnly && (
         <ConfirmModal
           collector={confirming}
@@ -240,116 +242,169 @@ export function CaissePage() {
         />
       )}
 
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">Caisse</h2>
+          <p className="text-sm text-gray-500 capitalize mt-0.5">{displayDate}</p>
+        </div>
+        <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-xl px-1 py-1 shadow-sm w-fit">
+          <button onClick={prevDay} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-gray-700 transition-colors">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7"/></svg>
+          </button>
+          <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
+            className="text-sm font-medium text-gray-700 bg-transparent border-none outline-none cursor-pointer px-1" />
+          <button onClick={nextDay} disabled={isToday} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-gray-700 disabled:opacity-30 transition-colors">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/></svg>
+          </button>
+        </div>
+      </div>
+
+      {/* Summary cards */}
+      <div className="grid grid-cols-3 gap-4 mb-8">
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+          <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">En attente</p>
+          <p className="text-2xl font-bold text-orange-600">{formatAmount(totalPending)}</p>
+          <p className="text-xs text-gray-400 mt-1">{pendingRows.length} collecteur{pendingRows.length !== 1 ? 's' : ''}</p>
+        </div>
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+          <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Versé aujourd'hui</p>
+          <p className="text-2xl font-bold text-green-700">{formatAmount(totalConfirmed)}</p>
+          <p className="text-xs text-gray-400 mt-1">{confirmedRows.length} versement{confirmedRows.length !== 1 ? 's' : ''}</p>
+        </div>
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+          <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Total collecté</p>
+          <p className="text-2xl font-bold text-gray-800">{formatAmount(totalPending + totalConfirmed)}</p>
+          <p className="text-xs text-gray-400 mt-1">{pendingRows.length + confirmedRows.length} collecteurs actifs</p>
+        </div>
+      </div>
+
       {/* Pending section */}
       <div className="mb-8">
-        <h3 className="text-base font-semibold text-gray-700 mb-3 flex items-center gap-2">
-          <span className="w-2.5 h-2.5 rounded-full bg-orange-400 inline-block" />
-          À verser
+        <div className="flex items-center gap-2 mb-3">
+          <div className="w-1 h-5 bg-orange-400 rounded-full" />
+          <h3 className="text-base font-semibold text-gray-800">À verser</h3>
           {pendingRows.length > 0 && (
-            <span className="ml-1 bg-orange-100 text-orange-700 text-xs font-medium px-2 py-0.5 rounded-full">
-              {pendingRows.length}
-            </span>
+            <span className="bg-orange-100 text-orange-700 text-xs font-bold px-2 py-0.5 rounded-full">{pendingRows.length}</span>
           )}
-        </h3>
+        </div>
+
         {loadingPending ? (
-          <p className="text-sm text-gray-400">Chargement...</p>
+          <div className="flex items-center gap-2 text-sm text-gray-400 py-6 justify-center">
+            <div className="w-4 h-4 border-2 border-gray-200 border-t-blue-500 rounded-full animate-spin" />
+            Chargement...
+          </div>
         ) : pendingRows.length === 0 ? (
-          <div className="bg-green-50 border border-green-200 text-green-800 text-sm px-4 py-3 rounded-lg">
-            Tous les collecteurs ont versé pour cette date.
+          <div className="bg-green-50 border border-green-200 rounded-2xl p-5 flex items-center gap-4">
+            <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
+              <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7"/></svg>
+            </div>
+            <div>
+              <p className="font-semibold text-green-800 text-sm">Tous les collecteurs ont versé</p>
+              <p className="text-green-600 text-xs mt-0.5">Aucun versement en attente pour cette date.</p>
+            </div>
           </div>
         ) : (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 border-b">
-                <tr>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">Collecteur</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">Encaissements</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">Montant total</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">Reste à verser</th>
-                  <th className="px-4 py-3" />
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {pendingRows.map((row: any) => {
-                  const outstanding = row.expected_amount - (row.received_amount ?? 0)
-                  return (
-                  <tr key={row.collector_id}>
-                    <td className="px-4 py-3 font-medium">{row.first_name} {row.last_name}</td>
-                    <td className="px-4 py-3 text-gray-600">{row.collections_count} encaissement{row.collections_count > 1 ? 's' : ''}</td>
-                    <td className="px-4 py-3 text-gray-700">{formatAmount(row.expected_amount)}</td>
-                    <td className="px-4 py-3 font-bold text-orange-700">{formatAmount(outstanding)}</td>
-                    <td className="px-4 py-3 text-right">
-                      {isReadOnly ? (
-                        <span className="px-3 py-1.5 text-xs bg-gray-100 text-gray-400 rounded font-medium">
-                          Lecture seule
-                        </span>
-                      ) : (
-                        <button
-                          onClick={() => setConfirming({ ...row, _outstanding: outstanding })}
-                          className="px-3 py-1.5 text-xs bg-green-700 text-white rounded hover:bg-green-800 font-medium"
-                        >
-                          Confirmer versement
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                  )
-                })}
-              </tbody>
-            </table>
+          <div className="space-y-3">
+            {pendingRows.map((row: any) => {
+              const outstanding = row.expected_amount - (row.received_amount ?? 0)
+              return (
+                <div key={row.collector_id} className="bg-white rounded-2xl border border-orange-100 shadow-sm p-4 flex items-center gap-4">
+                  <CollectorAvatar firstName={row.first_name} lastName={row.last_name} />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-gray-900 text-sm">{row.first_name} {row.last_name}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">{row.collections_count} encaissement{row.collections_count !== 1 ? 's' : ''} · Total {formatAmount(row.expected_amount)}</p>
+                  </div>
+                  <div className="text-right mr-2">
+                    <p className="text-xs text-gray-500">Reste à verser</p>
+                    <p className="text-lg font-bold text-orange-600">{formatAmount(outstanding)}</p>
+                  </div>
+                  {isReadOnly ? (
+                    <span className="text-xs bg-gray-100 text-gray-400 px-3 py-1.5 rounded-lg font-medium flex-shrink-0">Lecture seule</span>
+                  ) : (
+                    <button
+                      onClick={() => setConfirming({ ...row, _outstanding: outstanding })}
+                      className="flex-shrink-0 px-4 py-2 text-sm bg-green-700 text-white rounded-xl hover:bg-green-800 font-medium transition-colors shadow-sm"
+                    >
+                      Confirmer
+                    </button>
+                  )}
+                </div>
+              )
+            })}
           </div>
         )}
       </div>
 
       {/* Confirmed section */}
       <div>
-        <h3 className="text-base font-semibold text-gray-700 mb-3 flex items-center gap-2">
-          <span className="w-2.5 h-2.5 rounded-full bg-green-500 inline-block" />
-          Versements confirmés
-        </h3>
+        <div className="flex items-center gap-2 mb-3">
+          <div className="w-1 h-5 bg-green-500 rounded-full" />
+          <h3 className="text-base font-semibold text-gray-800">Versements confirmés</h3>
+          {confirmedRows.length > 0 && (
+            <span className="bg-green-100 text-green-700 text-xs font-bold px-2 py-0.5 rounded-full">{confirmedRows.length}</span>
+          )}
+        </div>
+
         {loadingConfirmed ? (
-          <p className="text-sm text-gray-400">Chargement...</p>
+          <div className="flex items-center gap-2 text-sm text-gray-400 py-6 justify-center">
+            <div className="w-4 h-4 border-2 border-gray-200 border-t-blue-500 rounded-full animate-spin" />
+            Chargement...
+          </div>
         ) : confirmedRows.length === 0 ? (
-          <p className="text-sm text-gray-500">Aucun versement confirmé pour cette date.</p>
+          <p className="text-sm text-gray-400 py-4 text-center">Aucun versement confirmé pour cette date.</p>
         ) : (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
             <table className="w-full text-sm">
-              <thead className="bg-gray-50 border-b">
-                <tr>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">Collecteur</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">Attendu</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">Reçu</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">Écart</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">Confirmé par</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">Heure</th>
+              <thead>
+                <tr className="border-b border-gray-100">
+                  <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Collecteur</th>
+                  <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Attendu</th>
+                  <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Reçu</th>
+                  <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Écart</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden sm:table-cell">Par</th>
+                  <th className="text-right px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden sm:table-cell">Heure</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-gray-50">
                 {confirmedRows.map((h: any) => {
                   const diff = (h.receivedAmount ?? 0) - h.expectedAmount
                   return (
-                    <tr key={h.id}>
-                      <td className="px-4 py-3 font-medium">{h.collector?.firstName} {h.collector?.lastName}</td>
-                      <td className="px-4 py-3">{formatAmount(h.expectedAmount)}</td>
-                      <td className="px-4 py-3 font-semibold">{formatAmount(h.receivedAmount ?? 0)}</td>
-                      <td className="px-4 py-3">
-                        <span className={`font-semibold ${diff === 0 ? 'text-green-600' : diff < 0 ? 'text-red-600' : 'text-orange-600'}`}>
-                          {diff === 0 ? <span className="flex items-center gap-0.5"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20,6 9,17 4,12"/></svg>OK</span> : `${diff > 0 ? '+' : ''}${formatAmount(diff)}`}
-                        </span>
+                    <tr key={h.id} className="hover:bg-gray-50/50 transition-colors">
+                      <td className="px-5 py-3.5">
+                        <div className="flex items-center gap-3">
+                          <CollectorAvatar firstName={h.collector?.firstName ?? ''} lastName={h.collector?.lastName ?? ''} />
+                          <span className="font-medium text-gray-900">{h.collector?.firstName} {h.collector?.lastName}</span>
+                        </div>
                       </td>
-                      <td className="px-4 py-3 text-gray-600 text-xs">{h.cashier?.firstName} {h.cashier?.lastName}</td>
-                      <td className="px-4 py-3 text-gray-500 text-xs">{h.confirmedAt ? formatDateTime(h.confirmedAt) : '—'}</td>
+                      <td className="px-4 py-3.5 text-right text-gray-600">{formatAmount(h.expectedAmount)}</td>
+                      <td className="px-4 py-3.5 text-right font-semibold text-gray-900">{formatAmount(h.receivedAmount ?? 0)}</td>
+                      <td className="px-4 py-3.5 text-center">
+                        {diff === 0 ? (
+                          <span className="inline-flex items-center gap-1 bg-green-100 text-green-700 text-xs font-semibold px-2.5 py-1 rounded-full">
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7"/></svg>
+                            OK
+                          </span>
+                        ) : (
+                          <span className={`text-xs font-bold ${diff < 0 ? 'text-red-600' : 'text-orange-600'}`}>
+                            {diff > 0 ? '+' : ''}{formatAmount(diff)}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3.5 text-gray-500 text-xs hidden sm:table-cell">{h.cashier?.firstName} {h.cashier?.lastName}</td>
+                      <td className="px-5 py-3.5 text-gray-400 text-xs text-right hidden sm:table-cell">{h.confirmedAt ? formatDateTime(h.confirmedAt) : '—'}</td>
                     </tr>
                   )
                 })}
               </tbody>
+              <tfoot>
+                <tr className="border-t-2 border-gray-100 bg-gray-50/50">
+                  <td className="px-5 py-3 font-semibold text-gray-700 text-sm" colSpan={2}>Total versé</td>
+                  <td className="px-4 py-3 text-right font-bold text-green-700 text-base">{formatAmount(totalConfirmed)}</td>
+                  <td colSpan={3} />
+                </tr>
+              </tfoot>
             </table>
-            <div className="px-4 py-3 bg-gray-50 border-t text-sm">
-              <span className="font-semibold">Total versé: </span>
-              <span className="font-bold text-green-700">
-                {formatAmount(confirmedRows.reduce((s: number, h: any) => s + (h.receivedAmount ?? 0), 0))}
-              </span>
-            </div>
           </div>
         )}
       </div>
