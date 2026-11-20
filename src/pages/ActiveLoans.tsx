@@ -104,6 +104,11 @@ function RepayModal({ loan, onClose }: { loan: ActiveLoan; onClose: () => void }
   })
 
   const effectiveAmount = fullPay ? loan.remainingAmount : parseInt(amount) || 0
+  const daily = loan.dailyAmount
+  const boxesPreview = daily > 0 && effectiveAmount > 0 ? Math.floor(effectiveAmount / daily) : 0
+  const amountValid = fullPay || effectiveAmount <= 0 ||
+    effectiveAmount === loan.remainingAmount ||
+    (daily > 0 && effectiveAmount % daily === 0 && effectiveAmount <= loan.remainingAmount)
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
@@ -214,12 +219,21 @@ function RepayModal({ loan, onClose }: { loan: ActiveLoan; onClose: () => void }
 
               {!fullPay && (
                 <div>
-                  <label className="block text-xs font-semibold text-gray-500 mb-1">Montant reçu (FCFA)</label>
+                  <label className="block text-xs font-semibold text-gray-500 mb-1">
+                    Montant reçu (FCFA)
+                    {daily > 0 && <span className="ml-1 font-normal text-gray-400">— multiple de {formatAmount(daily)} (1 jour)</span>}
+                  </label>
                   <input type="number" value={amount} onChange={e => setAmount(e.target.value)}
-                    min={1} placeholder="Montant reçu du client"
-                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+                    min={daily || 1} step={daily || 1} placeholder={`Ex: ${formatAmount(daily)}, ${formatAmount(daily * 2)}, …`}
+                    className={`w-full border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 ${!amountValid && effectiveAmount > 0 ? 'border-red-300 focus:ring-red-300' : 'border-gray-200 focus:ring-indigo-400'}`} />
+                  {effectiveAmount > 0 && !amountValid && (
+                    <p className="text-xs text-red-600 mt-1">Montant invalide — doit être un multiple de {formatAmount(daily)} FCFA</p>
+                  )}
                   {effectiveAmount > loan.remainingAmount && (
-                    <p className="text-xs text-amber-600 mt-1 flex items-center gap-1"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Dépassement de {formatAmount(effectiveAmount - loan.remainingAmount)} → monnaie à rendre</p>
+                    <p className="text-xs text-red-600 mt-1">Dépasse le solde restant ({formatAmount(loan.remainingAmount)} FCFA)</p>
+                  )}
+                  {amountValid && boxesPreview > 0 && effectiveAmount < loan.remainingAmount && (
+                    <p className="text-xs text-indigo-600 mt-1">= {boxesPreview} jour{boxesPreview > 1 ? 's' : ''} cochés dans le carnet</p>
                   )}
                 </div>
               )}
@@ -242,7 +256,7 @@ function RepayModal({ loan, onClose }: { loan: ActiveLoan; onClose: () => void }
               </button>
               <button
                 onClick={() => repay.mutate({ amount: effectiveAmount, note: note || undefined })}
-                disabled={repay.isPending || effectiveAmount <= 0}
+                disabled={repay.isPending || effectiveAmount <= 0 || !amountValid}
                 className="flex-1 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-bold hover:bg-indigo-700 disabled:opacity-50"
               >
                 {repay.isPending ? 'En cours…' : `Enregistrer ${formatAmount(effectiveAmount)}`}

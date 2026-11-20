@@ -27,6 +27,7 @@ interface DashboardData {
   cycleBreakdown: Array<{ status: string; label: string; count: number }>
   alertsByType: Array<{ type: string; count: number }>
   stakeDistribution: Array<{ stake: number; clients: number }>
+  nearFinishClients: Array<{ id: string; firstName: string; lastName: string; carnetNumber: string; daysLeft: number }>
 }
 
 const CYCLE_COLORS: Record<string, string> = {
@@ -287,6 +288,35 @@ export function DashboardPage() {
         <SmallKpi label="Alertes ouvertes" value={`${kpis.pendingAlerts}`} color={kpis.pendingAlerts > 5 ? '#ef4444' : '#f59e0b'} />
         <SmallKpi label="Annulations en attente" value={`${kpis.pendingVoids}`} color="#f97316" />
       </div>
+
+      {/* ── Near-finish clients ───────────────────────────────── */}
+      {data.nearFinishClients.length > 0 && (
+        <div className="rounded-2xl shadow-sm p-5" style={{ background: 'var(--c-card)', border: '1px solid #f59e0b44' }}>
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-2 h-5 rounded-full" style={{ background: '#f59e0b' }} />
+            <div>
+              <h3 className="font-bold" style={{ color: 'var(--c-text-h)' }}>Cycles bientôt terminés</h3>
+              <p className="text-xs mt-0.5" style={{ color: 'var(--c-text-m)' }}>
+                {data.nearFinishClients.length} client{data.nearFinishClients.length > 1 ? 's' : ''} avec ≤ 3 jours de contribution restants
+              </p>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+            {data.nearFinishClients.map(c => (
+              <div key={c.id} className="flex items-center gap-3 rounded-xl px-4 py-3" style={{ background: 'var(--c-app)' }}>
+                <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-white text-xs font-bold"
+                  style={{ background: c.daysLeft === 1 ? '#ef4444' : c.daysLeft === 2 ? '#f97316' : '#f59e0b' }}>
+                  {c.daysLeft}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold truncate" style={{ color: 'var(--c-text-h)' }}>{c.firstName} {c.lastName}</p>
+                  <p className="text-xs" style={{ color: 'var(--c-text-m)' }}>{c.carnetNumber} · {c.daysLeft} jour{c.daysLeft > 1 ? 's' : ''} restant{c.daysLeft > 1 ? 's' : ''}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
