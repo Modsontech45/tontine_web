@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../lib/api'
 import { formatAmount, formatDateTime } from '../lib/format'
+import { ConfirmDialog } from '../components/ConfirmDialog'
 
 interface PendingRepayment {
   id: string
@@ -78,6 +79,7 @@ function RejectModal({ repayment, onClose, onConfirm }: {
 export function PendingRepaymentsPage() {
   const qc = useQueryClient()
   const [rejectTarget, setRejectTarget] = useState<PendingRepayment | null>(null)
+  const [confirmTarget, setConfirmTarget] = useState<PendingRepayment | null>(null)
   const [flash, setFlash] = useState<{ id: string; type: 'confirmed' | 'rejected' } | null>(null)
 
   const { data, isLoading } = useQuery<{ data: PendingRepayment[] }>({
@@ -121,6 +123,23 @@ export function PendingRepaymentsPage() {
           onClose={() => setRejectTarget(null)}
           onConfirm={(note) => reject.mutate({ id: rejectTarget.id, note })}
         />
+      )}
+      {confirmTarget && (
+        <ConfirmDialog
+          title="Confirmer le remboursement"
+          confirmLabel="Confirmer"
+          confirmColor="green"
+          loading={confirm.isPending}
+          onConfirm={() => { confirm.mutate(confirmTarget.id); setConfirmTarget(null) }}
+          onCancel={() => setConfirmTarget(null)}
+        >
+          <div className="space-y-1.5 text-sm">
+            <div className="flex justify-between"><span className="text-gray-500">Client</span><span className="font-semibold">{confirmTarget.loan.client.firstName} {confirmTarget.loan.client.lastName}</span></div>
+            <div className="flex justify-between"><span className="text-gray-500">Carnet</span><span className="font-mono">{confirmTarget.loan.client.carnetNumber}</span></div>
+            <div className="flex justify-between"><span className="text-gray-500">Montant</span><span className="font-bold text-green-700">{formatAmount(confirmTarget.amount)} FCFA</span></div>
+            {confirmTarget.collector && <div className="flex justify-between"><span className="text-gray-500">Collecteur</span><span>{confirmTarget.collector.firstName} {confirmTarget.collector.lastName}</span></div>}
+          </div>
+        </ConfirmDialog>
       )}
 
       {/* Header */}
@@ -214,7 +233,7 @@ export function PendingRepaymentsPage() {
               {/* Action buttons */}
               <div className="flex flex-col gap-2 flex-shrink-0">
                 <button
-                  onClick={() => confirm.mutate(r.id)}
+                  onClick={() => setConfirmTarget(r)}
                   disabled={confirm.isPending}
                   className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 transition-colors"
                 >

@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { api } from '../lib/api'
 import { formatAmount, formatDate, formatDateTime, STATUS_LABELS } from '../lib/format'
 import { getStoredUser } from '../lib/auth'
+import { ConfirmDialog } from '../components/ConfirmDialog'
 
 export function ClientDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -13,6 +14,7 @@ export function ClientDetailPage() {
   const canManageCycles = user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' || user?.role === 'CONTROLLER'
 
   const [showNewCycleForm, setShowNewCycleForm] = useState(false)
+  const [confirmCloseCycleId, setConfirmCloseCycleId] = useState<string | null>(null)
   const [newCycleForm, setNewCycleForm] = useState({
     stake_amount: 500,
     start_date: new Date().toISOString().slice(0, 10),
@@ -103,6 +105,22 @@ export function ClientDetailPage() {
 
   return (
     <div className="max-w-4xl mx-auto">
+      {confirmCloseCycleId && (
+        <ConfirmDialog
+          title="Clôturer le cycle ?"
+          confirmLabel="Clôturer"
+          confirmColor="indigo"
+          loading={closeCycleMut.isPending}
+          onConfirm={() => { closeCycleMut.mutate(confirmCloseCycleId); setConfirmCloseCycleId(null) }}
+          onCancel={() => setConfirmCloseCycleId(null)}
+        >
+          <div className="space-y-1.5 text-sm">
+            <div className="flex justify-between"><span className="text-gray-500">Client</span><span className="font-semibold">{client.firstName} {client.lastName}</span></div>
+            <div className="flex justify-between"><span className="text-gray-500">Progression</span><span className="font-semibold">{filled} / {maxBoxes} cases</span></div>
+            <p className="text-xs text-gray-400 pt-1">Cette action est irréversible. Le cycle sera marqué comme terminé.</p>
+          </div>
+        </ConfirmDialog>
+      )}
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
         <button onClick={() => navigate('/clients')} className="text-gray-400 hover:text-gray-700 p-1 rounded">
@@ -206,7 +224,7 @@ export function ClientDetailPage() {
                   <span className="text-2xl font-bold text-gray-900">{filled}<span className="text-base font-normal text-gray-400">/{maxBoxes}</span></span>
                   {canManageCycles && filled >= maxBoxes && (
                     <button
-                      onClick={() => { if (window.confirm('Clôturer ce cycle complet ?')) closeCycleMut.mutate(openCycle.id) }}
+                      onClick={() => setConfirmCloseCycleId(openCycle.id)}
                       disabled={closeCycleMut.isPending}
                       className="text-xs px-3 py-1.5 bg-orange-600 text-white rounded hover:bg-orange-700 disabled:opacity-50"
                     >

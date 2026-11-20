@@ -1,7 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
+import { useState } from 'react'
 import { api } from '../lib/api'
 import { formatDateTime } from '../lib/format'
+import { ConfirmDialog } from '../components/ConfirmDialog'
 
 interface ActivityDevice {
   id: string
@@ -102,6 +104,7 @@ function timeAgo(dateStr: string | null): string {
 export function ActivityPage() {
   const qc = useQueryClient()
   const navigate = useNavigate()
+  const [confirmDevice, setConfirmDevice] = useState<PendingDevice | null>(null)
 
   const { data, isLoading, dataUpdatedAt } = useQuery({
     queryKey: ['activity'],
@@ -124,6 +127,23 @@ export function ActivityPage() {
 
   return (
     <div className="space-y-6">
+      {confirmDevice && (
+        <ConfirmDialog
+          title="Approuver cet appareil ?"
+          confirmLabel="Approuver"
+          confirmColor="green"
+          loading={approve.isPending}
+          onConfirm={() => { approve.mutate(confirmDevice.id); setConfirmDevice(null) }}
+          onCancel={() => setConfirmDevice(null)}
+        >
+          <div className="space-y-1.5 text-sm">
+            <div className="flex justify-between"><span className="text-gray-500">Collecteur</span><span className="font-semibold">{confirmDevice.user.firstName} {confirmDevice.user.lastName}</span></div>
+            <div className="flex justify-between"><span className="text-gray-500">Téléphone</span><span>{confirmDevice.user.phone}</span></div>
+            <div className="flex justify-between"><span className="text-gray-500">Modèle</span><span className="font-mono text-xs">{confirmDevice.model}</span></div>
+            <p className="text-xs text-gray-400 pt-1">Ce collecteur pourra se connecter depuis cet appareil.</p>
+          </div>
+        </ConfirmDialog>
+      )}
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -175,7 +195,7 @@ export function ActivityPage() {
                                className="text-xs text-blue-600 hover:underline flex items-center gap-0.5"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>Localisation</a>
                           )}
                         </div>
-                        <button onClick={() => approve.mutate(d.id)} disabled={approve.isPending}
+                        <button onClick={() => setConfirmDevice(d)} disabled={approve.isPending}
                           className="px-3 py-1.5 text-xs font-bold bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 flex-shrink-0">
                           <svg className="inline mr-1" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20,6 9,17 4,12"/></svg>Approuver
                         </button>
