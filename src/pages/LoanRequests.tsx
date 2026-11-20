@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../lib/api'
 import { formatAmount, formatDateTime } from '../lib/format'
+import { ConfirmDialog } from '../components/ConfirmDialog'
 
 function RepayCountdown({ dueDate }: { dueDate: string }) {
   const [ms, setMs] = useState(() => new Date(dueDate).getTime() - Date.now())
@@ -74,6 +75,7 @@ export function LoanRequestsPage() {
   const [filter, setFilter] = useState<string>('PENDING')
   const [reviewId, setReviewId] = useState<string | null>(null)
   const [reviewNote, setReviewNote] = useState('')
+  const [pendingAction, setPendingAction] = useState<{ req: LoanRequest; type: 'approve' | 'reject'; note: string } | null>(null)
 
   const { data, isLoading } = useQuery<{ data: LoanRequest[] }>({
     queryKey: ['loan-requests', filter],
@@ -96,6 +98,7 @@ export function LoanRequestsPage() {
   const pending = requests.filter(r => r.status === 'PENDING').length
 
   return (
+    <>
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
@@ -193,14 +196,12 @@ export function LoanRequestsPage() {
                             className="w-full text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-400"
                           />
                           <div className="flex gap-1.5">
-                            <button onClick={() => approve.mutate({ id: req.id, note: reviewNote })}
-                              disabled={approve.isPending}
-                              className="flex-1 px-2 py-1 text-xs font-bold bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50">
+                            <button onClick={() => setPendingAction({ req, type: 'approve', note: reviewNote })}
+                              className="flex-1 px-2 py-1 text-xs font-bold bg-green-600 text-white rounded-lg hover:bg-green-700">
                               <svg className="inline mr-1" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20,6 9,17 4,12"/></svg>Approuver
                             </button>
-                            <button onClick={() => reject.mutate({ id: req.id, note: reviewNote })}
-                              disabled={reject.isPending}
-                              className="flex-1 px-2 py-1 text-xs font-bold bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:opacity-50">
+                            <button onClick={() => setPendingAction({ req, type: 'reject', note: reviewNote })}
+                              className="flex-1 px-2 py-1 text-xs font-bold bg-red-500 text-white rounded-lg hover:bg-red-600">
                               <svg className="inline mr-1" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>Rejeter
                             </button>
                           </div>
@@ -228,5 +229,32 @@ export function LoanRequestsPage() {
         </div>
       )}
     </div>
+
+    {pendingAction && (
+      <ConfirmDialog
+        title={pendingAction.type === 'approve' ? 'Approuver ce crédit ?' : 'Rejeter cette demande ?'}
+        confirmLabel={pendingAction.type === 'approve' ? 'Approuver' : 'Rejeter'}
+        confirmColor={pendingAction.type === 'approve' ? 'green' : 'red'}
+        loading={approve.isPending || reject.isPending}
+        onCancel={() => setPendingAction(null)}
+        onConfirm={() => {
+          const { req, type, note } = pendingAction
+          if (type === 'approve') approve.mutate({ id: req.id, note })
+          else reject.mutate({ id: req.id, note })
+          setPendingAction(null)
+        }}
+      >
+        <div className="bg-gray-50 rounded-xl p-4 space-y-2">
+          <div className="flex justify-between"><span className="text-gray-500">Client</span><span className="font-semibold">{pendingAction.req.client.firstName} {pendingAction.req.client.lastName}</span></div>
+          <div className="flex justify-between"><span className="text-gray-500">Carnet</span><span className="font-mono text-xs">{pendingAction.req.client.carnetNumber}</span></div>
+          <div className="flex justify-between"><span className="text-gray-500">Montant demandé</span><span className="font-bold text-gray-900">{formatAmount(pendingAction.req.amount)} FCFA</span></div>
+          <div className="flex justify-between"><span className="text-gray-500">Décaissement</span><span className="font-bold text-amber-700">{formatAmount(pendingAction.req.disbursedAmount)} FCFA</span></div>
+          <div className="flex justify-between"><span className="text-gray-500">À rembourser</span><span className="font-bold text-indigo-700">{formatAmount(pendingAction.req.totalRepay)} FCFA</span></div>
+          <div className="flex justify-between"><span className="text-gray-500">Durée</span><span>{pendingAction.req.durationMonths} mois · {pendingAction.req.interestPct}%</span></div>
+        </div>
+        {pendingAction.note && <p className="text-xs text-gray-500 italic mt-2">Note : {pendingAction.note}</p>}
+      </ConfirmDialog>
+    )}
+    </>
   )
 }

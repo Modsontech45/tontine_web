@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../lib/api'
 import { formatAmount, formatDateTime } from '../lib/format'
+import { ConfirmDialog } from '../components/ConfirmDialog'
 
 interface Repayment {
   id: string
@@ -103,6 +104,7 @@ function RepayModal({ loan, onClose }: { loan: ActiveLoan; onClose: () => void }
     },
   })
 
+  const [confirming, setConfirming] = useState(false)
   const effectiveAmount = fullPay ? loan.remainingAmount : parseInt(amount) || 0
   const daily = loan.dailyAmount
   const boxesPreview = daily > 0 && effectiveAmount > 0 ? Math.floor(effectiveAmount / daily) : 0
@@ -111,6 +113,7 @@ function RepayModal({ loan, onClose }: { loan: ActiveLoan; onClose: () => void }
     (daily > 0 && effectiveAmount % daily === 0 && effectiveAmount <= loan.remainingAmount)
 
   return (
+    <>
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6 space-y-5">
         <div>
@@ -255,7 +258,7 @@ function RepayModal({ loan, onClose }: { loan: ActiveLoan; onClose: () => void }
                 Annuler
               </button>
               <button
-                onClick={() => repay.mutate({ amount: effectiveAmount, note: note || undefined })}
+                onClick={() => setConfirming(true)}
                 disabled={repay.isPending || effectiveAmount <= 0 || !amountValid}
                 className="flex-1 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-bold hover:bg-indigo-700 disabled:opacity-50"
               >
@@ -266,11 +269,36 @@ function RepayModal({ loan, onClose }: { loan: ActiveLoan; onClose: () => void }
         )}
       </div>
     </div>
+
+    {confirming && (
+      <ConfirmDialog
+        title="Confirmer le paiement"
+        confirmLabel={`Enregistrer ${formatAmount(effectiveAmount)}`}
+        confirmColor="indigo"
+        loading={repay.isPending}
+        onCancel={() => setConfirming(false)}
+        onConfirm={() => { setConfirming(false); repay.mutate({ amount: effectiveAmount, note: note || undefined }) }}
+      >
+        <div className="bg-gray-50 rounded-xl p-4 space-y-2">
+          <div className="flex justify-between"><span className="text-gray-500">Client</span><span className="font-semibold">{loan.client.firstName} {loan.client.lastName}</span></div>
+          <div className="flex justify-between"><span className="text-gray-500">Carnet</span><span className="font-mono text-xs">{loan.client.carnetNumber}</span></div>
+          <div className="flex justify-between"><span className="text-gray-500">Montant</span><span className="font-bold text-indigo-700">{formatAmount(effectiveAmount)} FCFA</span></div>
+          {daily > 0 && effectiveAmount < loan.remainingAmount && (
+            <div className="flex justify-between"><span className="text-gray-500">Jours cochés</span><span className="font-semibold">{Math.floor(effectiveAmount / daily)} jour{Math.floor(effectiveAmount / daily) > 1 ? 's' : ''}</span></div>
+          )}
+          <div className="flex justify-between"><span className="text-gray-500">Reste après</span><span className="font-semibold">{formatAmount(loan.remainingAmount - effectiveAmount)} FCFA</span></div>
+        </div>
+        {note && <p className="text-xs text-gray-500 italic mt-2">Note : {note}</p>}
+      </ConfirmDialog>
+    )}
+    </>
   )
 }
 
 function PendingRepaymentInbox() {
   const qc = useQueryClient()
+  const [pendingAction, setPendingAction] = useState<{ id: string; type: 'confirm' | 'reject'; repayment: PendingRepayment } | null>(null)
+
   const { data } = useQuery<{ data: PendingRepayment[] }>({
     queryKey: ['pending-repayments'],
     queryFn: () => api.get('/credit/pending-repayments').then(r => r.data),
@@ -280,16 +308,17 @@ function PendingRepaymentInbox() {
 
   const confirm = useMutation({
     mutationFn: (id: string) => api.post(`/credit/repayments/${id}/confirm`).then(r => r.data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['pending-repayments'] }); qc.invalidateQueries({ queryKey: ['active-loans'] }) },
+    onSuccess: () => { setPendingAction(null); qc.invalidateQueries({ queryKey: ['pending-repayments'] }); qc.invalidateQueries({ queryKey: ['active-loans'] }) },
   })
   const reject = useMutation({
     mutationFn: (id: string) => api.post(`/credit/repayments/${id}/reject`).then(r => r.data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['pending-repayments'] }),
+    onSuccess: () => { setPendingAction(null); qc.invalidateQueries({ queryKey: ['pending-repayments'] }) },
   })
 
   if (pending.length === 0) return null
 
   return (
+    <>
     <div className="rounded-2xl overflow-hidden" style={{ border: '2px solid #f59e0b', background: 'var(--c-card)' }}>
       <div className="px-5 py-3 flex items-center gap-2" style={{ background: '#fef3c7' }}>
         <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
@@ -312,16 +341,14 @@ function PendingRepaymentInbox() {
             <div className="flex items-center gap-3">
               <span className="text-lg font-bold text-indigo-600">{formatAmount(p.amount)}</span>
               <button
-                onClick={() => confirm.mutate(p.id)}
-                disabled={confirm.isPending}
-                className="px-4 py-1.5 rounded-lg text-xs font-bold bg-green-600 text-white hover:bg-green-700 disabled:opacity-50"
+                onClick={() => setPendingAction({ id: p.id, type: 'confirm', repayment: p })}
+                className="px-4 py-1.5 rounded-lg text-xs font-bold bg-green-600 text-white hover:bg-green-700"
               >
                 <svg className="inline mr-1" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20,6 9,17 4,12"/></svg>Confirmer
               </button>
               <button
-                onClick={() => reject.mutate(p.id)}
-                disabled={reject.isPending}
-                className="px-4 py-1.5 rounded-lg text-xs font-bold bg-red-500 text-white hover:bg-red-600 disabled:opacity-50"
+                onClick={() => setPendingAction({ id: p.id, type: 'reject', repayment: p })}
+                className="px-4 py-1.5 rounded-lg text-xs font-bold bg-red-500 text-white hover:bg-red-600"
               >
                 <svg className="inline mr-1" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>Rejeter
               </button>
@@ -330,6 +357,29 @@ function PendingRepaymentInbox() {
         ))}
       </div>
     </div>
+
+    {pendingAction && (
+      <ConfirmDialog
+        title={pendingAction.type === 'confirm' ? 'Confirmer ce paiement ?' : 'Rejeter ce paiement ?'}
+        confirmLabel={pendingAction.type === 'confirm' ? 'Confirmer' : 'Rejeter'}
+        confirmColor={pendingAction.type === 'confirm' ? 'green' : 'red'}
+        loading={confirm.isPending || reject.isPending}
+        onCancel={() => setPendingAction(null)}
+        onConfirm={() => {
+          if (pendingAction.type === 'confirm') confirm.mutate(pendingAction.id)
+          else reject.mutate(pendingAction.id)
+        }}
+      >
+        <div className="bg-gray-50 rounded-xl p-4 space-y-2">
+          <div className="flex justify-between"><span className="text-gray-500">Client</span><span className="font-semibold">{pendingAction.repayment.loan.client.firstName} {pendingAction.repayment.loan.client.lastName}</span></div>
+          <div className="flex justify-between"><span className="text-gray-500">Carnet</span><span className="font-mono text-xs">{pendingAction.repayment.loan.client.carnetNumber}</span></div>
+          <div className="flex justify-between"><span className="text-gray-500">Montant</span><span className="font-bold text-indigo-700">{formatAmount(pendingAction.repayment.amount)} FCFA</span></div>
+          <div className="flex justify-between"><span className="text-gray-500">Collecté par</span><span>{pendingAction.repayment.collector ? `${pendingAction.repayment.collector.firstName} ${pendingAction.repayment.collector.lastName}` : '—'}</span></div>
+        </div>
+        {pendingAction.repayment.note && <p className="text-xs text-gray-500 italic mt-2">Note : {pendingAction.repayment.note}</p>}
+      </ConfirmDialog>
+    )}
+    </>
   )
 }
 
